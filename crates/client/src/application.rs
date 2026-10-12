@@ -29,13 +29,14 @@ impl State {
         self.renderer.resize(width, height);
     }
 
-    fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+    fn handle_key(event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
         if let (KeyCode::Escape, true) = (code, is_pressed) {
             event_loop.exit();
         }
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), derive(Default))]
 pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
@@ -43,6 +44,7 @@ pub struct App {
 }
 
 impl App {
+    #[must_use]
     pub fn new(#[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>) -> Self {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
@@ -141,7 +143,7 @@ impl ApplicationHandler<State> for App {
                         ..
                     },
                 ..
-            } => state.handle_key(event_loop, code, key_state.is_pressed()),
+            } => State::handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
                 match state.renderer.render() {
                     Ok(()) => {}

@@ -1,3 +1,6 @@
+// shortcut: world types are not wired up yet; remove this allowance when they are used.
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]

@@ -21,7 +21,8 @@ pub struct State {
 impl State {
     /// # Errors
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
-        let renderer = crate::renderer::Renderer::new(window.clone()).await?;
+        let renderer =
+            crate::renderer::Renderer::new(window.clone(), engine::scene::PROTOTYPE_SCENE).await?;
         Ok(Self { window, renderer })
     }
 

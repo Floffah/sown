@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use wgpu::util::DeviceExt;
 use wgpu::{BackendOptions, InstanceFlags, MemoryBudgetThresholds, MemoryHints};
 use winit::window::Window;
 
@@ -14,11 +15,14 @@ pub(crate) struct Renderer {
     camera: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     depth: Option<wgpu::TextureView>,
+    mesh: wgpu::Buffer,
+    objects: wgpu::Buffer,
+    object_count: u32,
 }
 
 impl Renderer {
     /// # Errors
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, scene: &[engine::scene::Object]) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -84,6 +88,9 @@ impl Renderer {
             color_space: wgpu::SurfaceColorSpace::Auto,
         };
 
+        let object_count = u32::try_from(scene.len())?;
+        let mesh = create_cube_mesh(&device);
+        let objects = upload_objects(&device, scene);
         let pipeline = create_pipeline(&device, surface_format);
         let camera = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Camera aspect ratio"),
@@ -111,6 +118,9 @@ impl Renderer {
             camera,
             camera_bind_group,
             depth: None,
+            mesh,
+            objects,
+            object_count,
         })
     }
 
@@ -176,7 +186,7 @@ impl Renderer {
                 label: Some("Render Encoder"),
             });
 
-        draw_cube(
+        draw_scene(
             &mut encoder,
             &view,
             self.depth
@@ -184,6 +194,9 @@ impl Renderer {
                 .expect("Configured surface has a depth buffer"),
             &self.pipeline,
             &self.camera_bind_group,
+            &self.mesh,
+            &self.objects,
+            self.object_count,
         );
 
         // submit will accept anything that implements IntoIter
@@ -195,6 +208,52 @@ impl Renderer {
 }
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24Plus;
+
+fn create_cube_mesh(device: &wgpu::Device) -> wgpu::Buffer {
+    let corners: [[f32; 3]; 8] = [
+        [-0.5, -0.5, -0.5],
+        [0.5, -0.5, -0.5],
+        [0.5, 0.5, -0.5],
+        [-0.5, 0.5, -0.5],
+        [-0.5, -0.5, 0.5],
+        [0.5, -0.5, 0.5],
+        [0.5, 0.5, 0.5],
+        [-0.5, 0.5, 0.5],
+    ];
+    let indices = [
+        4, 5, 6, 4, 6, 7, 1, 0, 3, 1, 3, 2, 5, 1, 2, 5, 2, 6, 0, 4, 7, 0, 7, 3, 7, 6, 2, 7, 2, 3,
+        0, 1, 5, 0, 5, 4,
+    ];
+    let bytes: Vec<u8> = indices
+        .into_iter()
+        .flat_map(|index| corners[index])
+        .flat_map(f32::to_le_bytes)
+        .collect();
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Shared cube mesh"),
+        contents: &bytes,
+        usage: wgpu::BufferUsages::VERTEX,
+    })
+}
+
+fn upload_objects(device: &wgpu::Device, scene: &[engine::scene::Object]) -> wgpu::Buffer {
+    let bytes: Vec<u8> = scene
+        .iter()
+        .flat_map(|object| {
+            object
+                .position
+                .into_iter()
+                .chain(object.scale)
+                .chain(object.color)
+        })
+        .flat_map(f32::to_le_bytes)
+        .collect();
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Static scene objects"),
+        contents: &bytes,
+        usage: wgpu::BufferUsages::VERTEX,
+    })
+}
 
 fn create_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -208,7 +267,18 @@ fn create_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::
             module: &shader,
             entry_point: Some("vs_main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[],
+            buffers: &[
+                Some(wgpu::VertexBufferLayout {
+                    array_stride: 12,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3],
+                }),
+                Some(wgpu::VertexBufferLayout {
+                    array_stride: 36,
+                    step_mode: wgpu::VertexStepMode::Instance,
+                    attributes: &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3, 3 => Float32x3],
+                }),
+            ],
         },
         primitive: wgpu::PrimitiveState {
             cull_mode: Some(wgpu::Face::Back),
@@ -256,12 +326,16 @@ fn create_depth(device: &wgpu::Device, width: u32, height: u32) -> wgpu::Texture
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-fn draw_cube(
+#[allow(clippy::too_many_arguments)]
+fn draw_scene(
     encoder: &mut wgpu::CommandEncoder,
     color: &wgpu::TextureView,
     depth: &wgpu::TextureView,
     pipeline: &wgpu::RenderPipeline,
     camera: &wgpu::BindGroup,
+    mesh: &wgpu::Buffer,
+    objects: &wgpu::Buffer,
+    object_count: u32,
 ) {
     let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("Cube render pass"),
@@ -293,16 +367,56 @@ fn draw_cube(
     });
     pass.set_pipeline(pipeline);
     pass.set_bind_group(0, camera, &[]);
-    pass.draw(0..36, 0..1);
+    pass.set_vertex_buffer(0, mesh.slice(..));
+    pass.set_vertex_buffer(1, objects.slice(..));
+    pass.draw(0..36, 0..object_count);
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
 
+    fn read_pixels(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        mut encoder: wgpu::CommandEncoder,
+        target: &wgpu::Texture,
+    ) -> Vec<u8> {
+        let bytes_per_row = target.width() * 4;
+        assert_eq!(bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT, 0);
+        let readback = device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: u64::from(bytes_per_row) * u64::from(target.height()),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        encoder.copy_texture_to_buffer(
+            target.as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &readback,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(bytes_per_row),
+                    rows_per_image: None,
+                },
+            },
+            target.size(),
+        );
+        queue.submit([encoder.finish()]);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        readback.map_async(wgpu::MapMode::Read, .., move |result| {
+            sender.send(result).unwrap();
+        });
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        receiver.recv().unwrap().unwrap();
+        let pixels = readback.get_mapped_range(..).unwrap().to_vec();
+        readback.unmap();
+        pixels
+    }
+
     #[test]
     #[ignore = "requires an accessible GPU adapter"]
-    fn cube_renders_offscreen() {
+    fn scene_renders_offscreen() {
         pollster::block_on(async {
             let instance = wgpu::Instance::default();
             let adapter = instance
@@ -315,6 +429,9 @@ mod tests {
                 .expect("GPU device");
             let format = wgpu::TextureFormat::Rgba8Unorm;
             let pipeline = create_pipeline(&device, format);
+            let mesh = create_cube_mesh(&device);
+            let scene = engine::scene::PROTOTYPE_SCENE;
+            let objects = upload_objects(&device, scene);
             let camera = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: 16,
@@ -346,62 +463,42 @@ mod tests {
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
                     view_formats: &[],
                 });
-                let readback = device.create_buffer(&wgpu::BufferDescriptor {
-                    label: None,
-                    size: 256,
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                    mapped_at_creation: false,
-                });
                 let mut encoder =
                     device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-                draw_cube(
+                draw_scene(
                     &mut encoder,
                     &target.create_view(&wgpu::TextureViewDescriptor::default()),
                     &create_depth(&device, width, height),
                     &pipeline,
                     &bind_group,
+                    &mesh,
+                    &objects,
+                    u32::try_from(scene.len()).unwrap(),
                 );
-                encoder.copy_texture_to_buffer(
-                    wgpu::TexelCopyTextureInfo {
-                        texture: &target,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x: width / 2,
-                            y: height / 2,
-                            z: 0,
-                        },
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    wgpu::TexelCopyBufferInfo {
-                        buffer: &readback,
-                        layout: wgpu::TexelCopyBufferLayout {
-                            offset: 0,
-                            bytes_per_row: Some(256),
-                            rows_per_image: None,
-                        },
-                    },
-                    wgpu::Extent3d {
-                        width: 1,
-                        height: 1,
-                        depth_or_array_layers: 1,
-                    },
-                );
-                queue.submit([encoder.finish()]);
-                let (sender, receiver) = std::sync::mpsc::channel();
-                readback.map_async(wgpu::MapMode::Read, .., move |result| {
-                    sender.send(result).unwrap();
-                });
-                device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-                receiver.recv().unwrap().unwrap();
-                let pixels = readback.get_mapped_range(..).unwrap();
-                // The center sees the red front face, rather than the blue background.
+                let pixels = read_pixels(&device, &queue, encoder, &target);
+                let center = ((height / 2 * width + width / 2) * 4) as usize;
+                let marker = &pixels[center..center + 4];
+                // The marker stays visible when the floor and walls are drawn after it.
                 assert!(
-                    pixels[0] > 200 && pixels[1] < 100 && pixels[2] < 100,
-                    "center pixel: {:?}",
-                    &pixels[..4]
+                    marker[0] > 150 && marker[1] < 100 && marker[2] < 100,
+                    "marker pixel: {marker:?}"
                 );
-                drop(pixels);
-                readback.unmap();
+                assert!(
+                    pixels
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .any(|p| p[1] > p[0].saturating_add(20) && p[1] > p[2].saturating_add(20)),
+                    "green floor should be visible"
+                );
+                assert!(
+                    pixels
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .any(|p| p[2] > 100 && p[1] > 100 && p[2] > p[0].saturating_add(20)),
+                    "blue-gray walls should be visible"
+                );
             }
         });
     }

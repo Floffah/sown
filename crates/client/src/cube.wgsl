@@ -5,34 +5,20 @@ struct VertexOutput {
     @location(0) @interpolate(flat) color: vec3<f32>,
 };
 
-// shortcut: geometry is fixed in the shader, move it to mesh buffers when drawing world objects.
 @vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
-    let corners = array<vec3<f32>, 8>(
-        vec3(-1.0, -1.0, -1.0), vec3(1.0, -1.0, -1.0),
-        vec3(1.0, 1.0, -1.0), vec3(-1.0, 1.0, -1.0),
-        vec3(-1.0, -1.0, 1.0), vec3(1.0, -1.0, 1.0),
-        vec3(1.0, 1.0, 1.0), vec3(-1.0, 1.0, 1.0),
-    );
-    let indices = array<u32, 36>(
-        4, 5, 6, 4, 6, 7,
-        1, 0, 3, 1, 3, 2,
-        5, 1, 2, 5, 2, 6,
-        0, 4, 7, 0, 7, 3,
-        7, 6, 2, 7, 2, 3,
-        0, 1, 5, 0, 5, 4,
-    );
-    let colors = array<vec3<f32>, 6>(
-        vec3(0.9, 0.3, 0.15), vec3(0.5, 0.15, 0.1),
-        vec3(0.2, 0.6, 0.9), vec3(0.1, 0.3, 0.5),
-        vec3(0.9, 0.7, 0.2), vec3(0.4, 0.3, 0.1),
-    );
-
-    let eye = vec3(3.0, 2.0, 4.0);
-    let forward = normalize(-eye);
+fn vs_main(
+    @builtin(vertex_index) vertex_index: u32,
+    @location(0) vertex: vec3<f32>,
+    @location(1) position: vec3<f32>,
+    @location(2) scale: vec3<f32>,
+    @location(3) color: vec3<f32>,
+) -> VertexOutput {
+    let face_shades = array<f32, 6>(1.0, 0.6, 0.8, 0.5, 0.9, 0.4);
+    let eye = vec3(10.0, 12.0, 14.0);
+    let forward = normalize(vec3(0.0, 1.0, 0.0) - eye);
     let right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
     let up = cross(right, forward);
-    let offset = corners[indices[vertex_index]] - eye;
+    let offset = vertex * scale + position - eye;
     let depth = dot(offset, forward);
     // Perspective with a 60-degree vertical field of view and WebGPU's 0..1 depth range.
     let focal_length = 1.7320508;
@@ -46,7 +32,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
         far / (far - near) * depth - far * near / (far - near),
         depth,
     );
-    output.color = colors[vertex_index / 6u];
+    output.color = color * face_shades[vertex_index / 6u];
     return output;
 }
 

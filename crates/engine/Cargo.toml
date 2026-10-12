@@ -4,3 +4,4 @@ edition.workspace = true
 version.workspace = true
 
 [dependencies]
+bevy_ecs = { version = "0.19.1", default-features = false, features = ["std"] }

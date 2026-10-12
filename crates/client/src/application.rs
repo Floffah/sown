@@ -16,6 +16,8 @@ use winit::platform::web::EventLoopExtWebSys;
 pub struct State {
     window: Arc<Window>,
     renderer: crate::renderer::Renderer,
+    #[expect(dead_code, reason = "ECS updates and rendering are not connected yet")]
+    ecs: engine::ecs::Ecs,
 }
 
 impl State {
@@ -23,7 +25,13 @@ impl State {
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let renderer =
             crate::renderer::Renderer::new(window.clone(), engine::scene::PROTOTYPE_SCENE).await?;
-        Ok(Self { window, renderer })
+        let mut ecs = engine::ecs::Ecs::default();
+        engine::ecs::scene::spawn_cube(&mut ecs.world);
+        Ok(Self {
+            window,
+            renderer,
+            ecs,
+        })
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {

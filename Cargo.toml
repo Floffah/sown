@@ -6,3 +6,5 @@ resolver = "3"
 edition = "2024"
 version = "0.0.0"
 
+[profile.release]
+strip = true

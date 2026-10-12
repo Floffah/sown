@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use engine::ecs::{
+    bevy_ecs::prelude::World,
+    scene::{Material, Mesh, Transform},
+};
 use wgpu::util::DeviceExt;
 use wgpu::{BackendOptions, InstanceFlags, MemoryBudgetThresholds, MemoryHints};
 use winit::window::Window;
@@ -16,13 +20,11 @@ pub(crate) struct Renderer {
     camera_bind_group: wgpu::BindGroup,
     depth: Option<wgpu::TextureView>,
     mesh: wgpu::Buffer,
-    objects: wgpu::Buffer,
-    object_count: u32,
 }
 
 impl Renderer {
     /// # Errors
-    pub async fn new(window: Arc<Window>, scene: &[engine::scene::Object]) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -88,9 +90,7 @@ impl Renderer {
             color_space: wgpu::SurfaceColorSpace::Auto,
         };
 
-        let object_count = u32::try_from(scene.len())?;
         let mesh = create_cube_mesh(&device);
-        let objects = upload_objects(&device, scene);
         let pipeline = create_pipeline(&device, surface_format);
         let camera = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Camera aspect ratio"),
@@ -119,8 +119,6 @@ impl Renderer {
             camera_bind_group,
             depth: None,
             mesh,
-            objects,
-            object_count,
         })
     }
 
@@ -145,7 +143,7 @@ impl Renderer {
         }
     }
 
-    pub(crate) fn render(&mut self) -> anyhow::Result<()> {
+    pub(crate) fn render(&mut self, world: &mut World) -> anyhow::Result<()> {
         // We can't render unless the surface is configured
         if !self.is_surface_configured {
             return Ok(());
@@ -186,6 +184,9 @@ impl Renderer {
                 label: Some("Render Encoder"),
             });
 
+        let instances = extract_cubes(world);
+        let object_count = u32::try_from(instances.len() / 52)?;
+        let objects = upload_objects(&self.device, &instances);
         draw_scene(
             &mut encoder,
             &view,
@@ -195,8 +196,8 @@ impl Renderer {
             &self.pipeline,
             &self.camera_bind_group,
             &self.mesh,
-            &self.objects,
-            self.object_count,
+            &objects,
+            object_count,
         );
 
         // submit will accept anything that implements IntoIter
@@ -236,21 +237,29 @@ fn create_cube_mesh(device: &wgpu::Device) -> wgpu::Buffer {
     })
 }
 
-fn upload_objects(device: &wgpu::Device, scene: &[engine::scene::Object]) -> wgpu::Buffer {
-    let bytes: Vec<u8> = scene
-        .iter()
-        .flat_map(|object| {
-            object
-                .position
+// Each instance contains translation (3), rotation (4), scale (3), and colour (3).
+fn extract_cubes(world: &mut World) -> Vec<u8> {
+    world
+        .query::<(&Transform, &Mesh, &Material)>()
+        .iter(world)
+        .flat_map(|(transform, mesh, material)| match mesh {
+            Mesh::Cube => transform
+                .translation
                 .into_iter()
-                .chain(object.scale)
-                .chain(object.color)
+                .chain(transform.rotation)
+                .chain(transform.scale)
+                .chain(material.color),
         })
         .flat_map(f32::to_le_bytes)
-        .collect();
+        .collect()
+}
+
+fn upload_objects(device: &wgpu::Device, bytes: &[u8]) -> wgpu::Buffer {
+    // shortcut: recreate the instance buffer per redraw; reuse it when allocation becomes a bottleneck.
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Static scene objects"),
-        contents: &bytes,
+        label: Some("ECS cube instances"),
+        // Keep a valid vertex buffer bound even when there are no instances to draw.
+        contents: if bytes.is_empty() { &[0; 52] } else { bytes },
         usage: wgpu::BufferUsages::VERTEX,
     })
 }
@@ -274,9 +283,9 @@ fn create_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::
                     attributes: &wgpu::vertex_attr_array![0 => Float32x3],
                 }),
                 Some(wgpu::VertexBufferLayout {
-                    array_stride: 36,
+                    array_stride: 52,
                     step_mode: wgpu::VertexStepMode::Instance,
-                    attributes: &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3, 3 => Float32x3],
+                    attributes: &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x4, 3 => Float32x3, 4 => Float32x3],
                 }),
             ],
         },
@@ -376,6 +385,34 @@ fn draw_scene(
 mod tests {
     use super::*;
 
+    #[test]
+    fn cube_instances_follow_ecs_changes() {
+        let mut world = World::new();
+        assert_eq!(extract_cubes(&mut world), []);
+        world.spawn(Mesh::Cube);
+        assert_eq!(extract_cubes(&mut world), []);
+
+        let cube = engine::ecs::scene::spawn_cube(&mut world);
+        world.get_mut::<Transform>(cube).unwrap().translation = [1.0, 2.0, 3.0];
+        world.get_mut::<Transform>(cube).unwrap().rotation = [0.0, 0.0, 1.0, 0.0];
+        world.get_mut::<Transform>(cube).unwrap().scale = [2.0, 3.0, 4.0];
+        world.get_mut::<Material>(cube).unwrap().color = [0.0, 1.0, 0.0];
+        let expected: Vec<u8> = [
+            1.0_f32, 2.0, 3.0, 0.0, 0.0, 1.0, 0.0, 2.0, 3.0, 4.0, 0.0, 1.0, 0.0,
+        ]
+        .into_iter()
+        .flat_map(f32::to_le_bytes)
+        .collect();
+        assert_eq!(extract_cubes(&mut world), expected);
+
+        let second = engine::ecs::scene::spawn_cube(&mut world);
+        assert_eq!(extract_cubes(&mut world).len(), 2 * 52);
+        world.entity_mut(second).remove::<Material>();
+        assert_eq!(extract_cubes(&mut world), expected);
+        world.despawn(cube);
+        assert_eq!(extract_cubes(&mut world), []);
+    }
+
     fn read_pixels(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -416,7 +453,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires an accessible GPU adapter"]
-    fn scene_renders_offscreen() {
+    fn ecs_cubes_render_offscreen() {
         pollster::block_on(async {
             let instance = wgpu::Instance::default();
             let adapter = instance
@@ -430,8 +467,6 @@ mod tests {
             let format = wgpu::TextureFormat::Rgba8Unorm;
             let pipeline = create_pipeline(&device, format);
             let mesh = create_cube_mesh(&device);
-            let scene = engine::scene::PROTOTYPE_SCENE;
-            let objects = upload_objects(&device, scene);
             let camera = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: 16,
@@ -446,59 +481,75 @@ mod tests {
                     resource: camera.as_entire_binding(),
                 }],
             });
-            // Exercise a square and a wide target with matching projection and depth dimensions.
-            for (width, height, aspect) in [(64, 64, 1.0_f32), (128, 64, 2.0_f32)] {
-                queue.write_buffer(&camera, 0, &aspect.to_le_bytes());
-                let target = device.create_texture(&wgpu::TextureDescriptor {
-                    label: None,
-                    size: wgpu::Extent3d {
-                        width,
-                        height,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-                    view_formats: &[],
-                });
-                let mut encoder =
-                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-                draw_scene(
-                    &mut encoder,
-                    &target.create_view(&wgpu::TextureViewDescriptor::default()),
-                    &create_depth(&device, width, height),
-                    &pipeline,
-                    &bind_group,
-                    &mesh,
-                    &objects,
-                    u32::try_from(scene.len()).unwrap(),
-                );
-                let pixels = read_pixels(&device, &queue, encoder, &target);
-                let center = ((height / 2 * width + width / 2) * 4) as usize;
-                let marker = &pixels[center..center + 4];
-                // The marker stays visible when the floor and walls are drawn after it.
-                assert!(
-                    marker[0] > 150 && marker[1] < 100 && marker[2] < 100,
-                    "marker pixel: {marker:?}"
-                );
-                assert!(
-                    pixels
-                        .as_chunks::<4>()
-                        .0
-                        .iter()
-                        .any(|p| p[1] > p[0].saturating_add(20) && p[1] > p[2].saturating_add(20)),
-                    "green floor should be visible"
-                );
-                assert!(
-                    pixels
-                        .as_chunks::<4>()
-                        .0
-                        .iter()
-                        .any(|p| p[2] > 100 && p[1] > 100 && p[2] > p[0].saturating_add(20)),
-                    "blue-gray walls should be visible"
-                );
+            for cube_count in 0..=2 {
+                let mut world = World::new();
+                if cube_count > 0 {
+                    engine::ecs::scene::spawn_cube(&mut world);
+                }
+                if cube_count > 1 {
+                    let back = engine::ecs::scene::spawn_cube(&mut world);
+                    let mut transform = world.get_mut::<Transform>(back).unwrap();
+                    transform.translation = [-1.5, -1.5, -2.5];
+                    transform.scale = [3.0; 3];
+                    transform.rotation = [0.0, 1.0, 0.0, 0.0];
+                    world.get_mut::<Material>(back).unwrap().color = [0.0, 1.0, 0.0];
+                }
+                let instances = extract_cubes(&mut world);
+                let objects = upload_objects(&device, &instances);
+                // Exercise square and wide targets, including an empty ECS world.
+                for (width, height, aspect) in [(64, 64, 1.0_f32), (128, 64, 2.0_f32)] {
+                    queue.write_buffer(&camera, 0, &aspect.to_le_bytes());
+                    let target = device.create_texture(&wgpu::TextureDescriptor {
+                        label: None,
+                        size: wgpu::Extent3d {
+                            width,
+                            height,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::COPY_SRC,
+                        view_formats: &[],
+                    });
+                    let mut encoder =
+                        device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+                    draw_scene(
+                        &mut encoder,
+                        &target.create_view(&wgpu::TextureViewDescriptor::default()),
+                        &create_depth(&device, width, height),
+                        &pipeline,
+                        &bind_group,
+                        &mesh,
+                        &objects,
+                        cube_count,
+                    );
+                    let pixels = read_pixels(&device, &queue, encoder, &target);
+                    if cube_count == 0 {
+                        assert!(pixels.as_chunks::<4>().0.iter().all(|p| p == &pixels[..4]));
+                        continue;
+                    }
+                    let center = ((height / 2 * width + width / 2) * 4) as usize;
+                    let marker = &pixels[center..center + 4];
+                    // The orange cube stays visible when the green cube behind it is drawn later.
+                    if cube_count > 1 {
+                        assert!(
+                            marker[0] > 150 && marker[1] < 100 && marker[2] < 100,
+                            "marker pixel: {marker:?}"
+                        );
+                        assert!(
+                            pixels
+                                .as_chunks::<4>()
+                                .0
+                                .iter()
+                                .any(|p| p[1] > p[0].saturating_add(20)
+                                    && p[1] > p[2].saturating_add(20)),
+                            "second cube should be visible"
+                        );
+                    }
+                }
             }
         });
     }

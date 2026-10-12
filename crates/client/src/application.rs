@@ -16,15 +16,13 @@ use winit::platform::web::EventLoopExtWebSys;
 pub struct State {
     window: Arc<Window>,
     renderer: crate::renderer::Renderer,
-    #[expect(dead_code, reason = "ECS updates and rendering are not connected yet")]
     ecs: engine::ecs::Ecs,
 }
 
 impl State {
     /// # Errors
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
-        let renderer =
-            crate::renderer::Renderer::new(window.clone(), engine::scene::PROTOTYPE_SCENE).await?;
+        let renderer = crate::renderer::Renderer::new(window.clone()).await?;
         let mut ecs = engine::ecs::Ecs::default();
         engine::ecs::scene::spawn_cube(&mut ecs.world);
         Ok(Self {
@@ -154,7 +152,7 @@ impl ApplicationHandler<State> for App {
                 ..
             } => State::handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
-                match state.renderer.render() {
+                match state.renderer.render(&mut state.ecs.world) {
                     Ok(()) => {}
                     Err(e) => {
                         // Log the error and exit gracefully

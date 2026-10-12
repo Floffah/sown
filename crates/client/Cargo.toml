@@ -6,9 +6,6 @@ version.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-strip = true
-
 [dependencies]
 engine = { path = "../engine" }
 anyhow = "1.0"

@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "name": "Main",
+  "root": {
+    "id": "node_7fcfbe97-14ca-45b0-8971-017664717ff6",
+    "name": "World",
+    "type": "Node3D",
+    "behaviours": [
+      "root://main/server/room.ts",
+      "root://main/client/room.ts"
+    ],
+    "children": [
+      {
+        "id": "node_82673cab-77c3-40c6-b2f5-05a62cbf3582",
+        "name": "Floor",
+        "type": "Mesh",
+        "transform": {
+          "position": [0, -0.5, 0],
+          "scale": [20, 1, 20]
+        },
+        "mesh": {
+          "primitive": "box"
+        },
+        "collider": {
+          "shape": "box"
+        }
+      },
+      {
+        "id": "node_a6cd8571-88ac-4586-9a5d-a27c25a489a0",
+        "name": "North Wall",
+        "type": "Mesh",
+        "transform": {
+          "position": [0, 2, -10.5],
+          "scale": [20, 5, 1]
+        },
+        "mesh": {
+          "primitive": "box"
+        },
+        "collider": {
+          "shape": "box"
+        }
+      },
+      {
+        "id": "node_a258beec-84d7-4884-84db-39cd5387cf52",
+        "name": "South Wall",
+        "type": "Mesh",
+        "transform": {
+          "position": [0, 2, 10.5],
+          "scale": [20, 5, 1]
+        },
+        "mesh": {
+          "primitive": "box"
+        },
+        "collider": {
+          "shape": "box"
+        }
+      },
+      {
+        "id": "node_29f83c91-fd4f-4373-97b2-ab5812618ae6",
+        "name": "East Wall",
+        "type": "Mesh",
+        "transform": {
+          "position": [10.5, 2, 0],
+          "scale": [1, 5, 20]
+        },
+        "mesh": {
+          "primitive": "box"
+        },
+        "collider": {
+          "shape": "box"
+        }
+      },
+      {
+        "id": "node_401841b2-da77-4b93-bf00-3c90fa799532",
+        "name": "West Wall",
+        "type": "Mesh",
+        "transform": {
+          "position": [-10.5, 2, 0],
+          "scale": [1, 5, 20]
+        },
+        "mesh": {
+          "primitive": "box"
+        },
+        "collider": {
+          "shape": "box"
+        }
+      },
+      {
+        "id": "node_d6c59a8a-42b0-42fc-b4e6-32802678cacb",
+        "name": "Spawn",
+        "type": "Spawn",
+        "transform": {
+          "position": [0, 1, 0]
+        }
+      }
+    ]
+  }
+}

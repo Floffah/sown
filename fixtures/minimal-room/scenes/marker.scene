@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "name": "Marker",
+  "root": {
+    "id": "node_marker",
+    "name": "Marker",
+    "type": "Node3D"
+  }
+}

@@ -1,4 +1,4 @@
-//! Scene components and a directly authored single-cube scene.
+//! Scene components and directly authored prototype entities.
 
 use bevy_ecs::prelude::{Component, Entity, World};
 
@@ -19,6 +19,43 @@ pub enum Mesh {
 #[derive(Component, Debug, PartialEq)]
 pub struct Material {
     pub color: [f32; 3],
+}
+
+/// A perspective camera looking along local -Z, with local +Y as up.
+/// Position and orientation come from its `Transform`; scale is ignored.
+#[derive(Component, Debug, PartialEq)]
+pub struct Camera {
+    pub fov_y_radians: f32,
+    pub near: f32,
+    pub far: f32,
+}
+
+/// Spawns the prototype camera at (3, 3, 5), looking at the origin.
+pub fn spawn_camera(world: &mut World) -> Entity {
+    let yaw = 3.0_f32.atan2(5.0);
+    let pitch = -3.0_f32.atan2(34.0_f32.sqrt());
+    let (sin_yaw, cos_yaw) = (yaw / 2.0).sin_cos();
+    let (sin_pitch, cos_pitch) = (pitch / 2.0).sin_cos();
+    world
+        .spawn((
+            Transform {
+                translation: [3.0, 3.0, 5.0],
+                // Compose yaw about Y followed by pitch about the camera's local X.
+                rotation: [
+                    cos_yaw * sin_pitch,
+                    sin_yaw * cos_pitch,
+                    -sin_yaw * sin_pitch,
+                    cos_yaw * cos_pitch,
+                ],
+                scale: [1.0; 3],
+            },
+            Camera {
+                fov_y_radians: 60.0_f32.to_radians(),
+                near: 0.1,
+                far: 100.0,
+            },
+        ))
+        .id()
 }
 
 /// Spawns a unit cube at the origin. Call on an empty world for a single-cube scene.

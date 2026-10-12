@@ -25,6 +25,7 @@ impl State {
         let renderer = crate::renderer::Renderer::new(window.clone()).await?;
         let mut ecs = engine::ecs::Ecs::default();
         engine::ecs::scene::spawn_cube(&mut ecs.world);
+        engine::ecs::scene::spawn_camera(&mut ecs.world);
         Ok(Self {
             window,
             renderer,

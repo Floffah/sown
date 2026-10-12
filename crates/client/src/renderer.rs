@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use engine::ecs::{
     bevy_ecs::prelude::World,
-    scene::{Material, Mesh, Transform},
+    scene::{Camera, Material, Mesh, Transform},
 };
 use wgpu::util::DeviceExt;
 use wgpu::{BackendOptions, InstanceFlags, MemoryBudgetThresholds, MemoryHints};
@@ -93,8 +93,8 @@ impl Renderer {
         let mesh = create_cube_mesh(&device);
         let pipeline = create_pipeline(&device, surface_format);
         let camera = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Camera aspect ratio"),
-            size: 16,
+            label: Some("ECS camera"),
+            size: 48,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -134,11 +134,6 @@ impl Renderer {
                 self.config.width,
                 self.config.height,
             ));
-            // Texture dimensions fit within the useful precision of a GPU float.
-            #[allow(clippy::cast_precision_loss)]
-            let aspect = self.config.width as f32 / self.config.height as f32;
-            self.queue
-                .write_buffer(&self.camera, 0, &aspect.to_le_bytes());
             self.window.request_redraw();
         }
     }
@@ -148,6 +143,13 @@ impl Renderer {
         if !self.is_surface_configured {
             return Ok(());
         }
+
+        // Texture dimensions fit within the useful precision of a GPU float.
+        #[allow(clippy::cast_precision_loss)]
+        let aspect = self.config.width as f32 / self.config.height as f32;
+        let camera = extract_camera(world, aspect)?;
+        let camera_bytes: Vec<u8> = camera.into_iter().flat_map(f32::to_le_bytes).collect();
+        self.queue.write_buffer(&self.camera, 0, &camera_bytes);
 
         let output = match self.surface.get_current_texture() {
             #[allow(clippy::match_same_arms)]
@@ -209,6 +211,51 @@ impl Renderer {
 }
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24Plus;
+
+fn extract_camera(world: &mut World, aspect: f32) -> anyhow::Result<[f32; 12]> {
+    let mut cameras = world.query::<(&Camera, &Transform)>();
+    let (camera, transform) = cameras.single(world).map_err(|error| {
+        anyhow::anyhow!("Expected exactly one camera with a Transform: {error}")
+    })?;
+    anyhow::ensure!(
+        camera.fov_y_radians.is_finite()
+            && camera.fov_y_radians > 0.0
+            && camera.fov_y_radians < std::f32::consts::PI
+            && camera.near.is_finite()
+            && camera.near > 0.0
+            && camera.far.is_finite()
+            && camera.far > camera.near,
+        "Camera requires a field of view between 0 and pi radians and 0 < near < far"
+    );
+    let length = transform
+        .rotation
+        .iter()
+        .map(|value| value * value)
+        .sum::<f32>()
+        .sqrt();
+    anyhow::ensure!(
+        transform.translation.iter().all(|value| value.is_finite())
+            && length.is_finite()
+            && length > 0.0,
+        "Camera requires a finite position and a finite, nonzero quaternion"
+    );
+    let [x, y, z] = transform.translation;
+    let [qx, qy, qz, qw] = transform.rotation.map(|value| value / length);
+    Ok([
+        x,
+        y,
+        z,
+        0.0,
+        qx,
+        qy,
+        qz,
+        qw,
+        1.0 / (camera.fov_y_radians / 2.0).tan(),
+        aspect,
+        camera.near,
+        camera.far,
+    ])
+}
 
 fn create_cube_mesh(device: &wgpu::Device) -> wgpu::Buffer {
     let corners: [[f32; 3]; 8] = [
@@ -386,6 +433,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn camera_uniform_follows_ecs_changes() {
+        let mut world = World::new();
+        assert!(extract_camera(&mut world, 1.0).is_err());
+        let entity = engine::ecs::scene::spawn_camera(&mut world);
+        let camera = extract_camera(&mut world, 2.0).unwrap();
+        assert_eq!(&camera[..4], &[3.0, 3.0, 5.0, 0.0]);
+        assert!((camera[8] - 3.0_f32.sqrt()).abs() < 0.00001);
+        assert_eq!(&camera[9..], &[2.0, 0.1, 100.0]);
+
+        world.get_mut::<Transform>(entity).unwrap().translation = [0.0, 0.0, 5.0];
+        world.get_mut::<Transform>(entity).unwrap().rotation = [0.0, 0.0, 0.0, 2.0];
+        world.get_mut::<Camera>(entity).unwrap().fov_y_radians = std::f32::consts::FRAC_PI_2;
+        world.get_mut::<Camera>(entity).unwrap().near = 1.0;
+        world.get_mut::<Camera>(entity).unwrap().far = 10.0;
+        let camera = extract_camera(&mut world, 1.0).unwrap();
+        assert_eq!(&camera[..8], &[0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+        assert!((camera[8] - 1.0).abs() < 0.00001);
+        assert_eq!(&camera[9..], &[1.0, 1.0, 10.0]);
+
+        world.get_mut::<Camera>(entity).unwrap().near = 10.0;
+        assert!(extract_camera(&mut world, 1.0).is_err());
+        world.get_mut::<Camera>(entity).unwrap().near = 1.0;
+        world.get_mut::<Transform>(entity).unwrap().rotation = [0.0; 4];
+        assert!(extract_camera(&mut world, 1.0).is_err());
+        world.get_mut::<Transform>(entity).unwrap().rotation = [0.0, 0.0, 0.0, 1.0];
+        let second = engine::ecs::scene::spawn_camera(&mut world);
+        assert!(extract_camera(&mut world, 1.0).is_err());
+        world.despawn(second);
+        world.entity_mut(entity).remove::<Transform>();
+        assert!(extract_camera(&mut world, 1.0).is_err());
+    }
+
+    #[test]
     fn cube_instances_follow_ecs_changes() {
         let mut world = World::new();
         assert_eq!(extract_cubes(&mut world), []);
@@ -453,6 +533,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires an accessible GPU adapter"]
+    #[allow(clippy::too_many_lines)]
     fn ecs_cubes_render_offscreen() {
         pollster::block_on(async {
             let instance = wgpu::Instance::default();
@@ -469,7 +550,7 @@ mod tests {
             let mesh = create_cube_mesh(&device);
             let camera = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
-                size: 16,
+                size: 48,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
@@ -483,6 +564,7 @@ mod tests {
             });
             for cube_count in 0..=2 {
                 let mut world = World::new();
+                let camera_entity = engine::ecs::scene::spawn_camera(&mut world);
                 if cube_count > 0 {
                     engine::ecs::scene::spawn_cube(&mut world);
                 }
@@ -496,9 +578,23 @@ mod tests {
                 }
                 let instances = extract_cubes(&mut world);
                 let objects = upload_objects(&device, &instances);
-                // Exercise square and wide targets, including an empty ECS world.
-                for (width, height, aspect) in [(64, 64, 1.0_f32), (128, 64, 2.0_f32)] {
-                    queue.write_buffer(&camera, 0, &aspect.to_le_bytes());
+                // Exercise aspect ratios and a camera turned away from the cubes.
+                for (width, height, aspect, visible) in [
+                    (64, 64, 1.0_f32, true),
+                    (128, 64, 2.0_f32, true),
+                    (64, 64, 1.0_f32, false),
+                ] {
+                    if !visible {
+                        let mut transform = world.get_mut::<Transform>(camera_entity).unwrap();
+                        transform.translation = [0.0, 0.0, 5.0];
+                        transform.rotation = [0.0, 1.0, 0.0, 0.0];
+                    }
+                    let camera_bytes: Vec<u8> = extract_camera(&mut world, aspect)
+                        .unwrap()
+                        .into_iter()
+                        .flat_map(f32::to_le_bytes)
+                        .collect();
+                    queue.write_buffer(&camera, 0, &camera_bytes);
                     let target = device.create_texture(&wgpu::TextureDescriptor {
                         label: None,
                         size: wgpu::Extent3d {
@@ -527,18 +623,18 @@ mod tests {
                         cube_count,
                     );
                     let pixels = read_pixels(&device, &queue, encoder, &target);
-                    if cube_count == 0 {
+                    if cube_count == 0 || !visible {
                         assert!(pixels.as_chunks::<4>().0.iter().all(|p| p == &pixels[..4]));
                         continue;
                     }
                     let center = ((height / 2 * width + width / 2) * 4) as usize;
                     let marker = &pixels[center..center + 4];
                     // The orange cube stays visible when the green cube behind it is drawn later.
+                    assert!(
+                        marker[0] > 150 && marker[1] < 100 && marker[2] < 100,
+                        "marker pixel: {marker:?}"
+                    );
                     if cube_count > 1 {
-                        assert!(
-                            marker[0] > 150 && marker[1] < 100 && marker[2] < 100,
-                            "marker pixel: {marker:?}"
-                        );
                         assert!(
                             pixels
                                 .as_chunks::<4>()

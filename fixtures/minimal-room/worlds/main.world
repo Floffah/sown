@@ -84,14 +84,6 @@
         "collider": {
           "shape": "box"
         }
-      },
-      {
-        "id": "node_d6c59a8a-42b0-42fc-b4e6-32802678cacb",
-        "name": "Spawn",
-        "type": "Spawn",
-        "transform": {
-          "position": [0, 1, 0]
-        }
       }
     ]
   }

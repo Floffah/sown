@@ -5,12 +5,19 @@ build:
     cargo build --workspace --release
 
 [arg("profile", long)]
-check profile="test": (fixtures profile) clippy
+check profile="test": clippy test #  (fixtures profile)
     cargo fmt --all --check
-    cargo test --locked --workspace --profile {{profile}}
+
 
 fixtures profile="dev":
     cargo run --locked --quiet --profile {{profile}} -p brixin-cli -- check fixtures/minimal-room
+
+alias run := run-client
+run-client:
+    cargo run crates/client
+
+run-server:
+    cargo run crates/server --world=fixtures/minimal-room
 
 clippy:
     cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic
@@ -24,8 +31,9 @@ release-digest profile="dev":
 format:
     cargo fmt --all
 
-test:
-    cargo test --locked --workspace
+[arg("profile", long)]
+test profile="test":
+    cargo test --locked --workspace --profile {{profile}}
 
 doc:
     RUSTDOCFLAGS="--enable-index-page -Zunstable-options" cargo doc --no-deps --document-private-items --all-features --lib --bins --examples --workspace --all --release

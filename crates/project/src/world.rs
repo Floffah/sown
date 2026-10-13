@@ -1,29 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Parses the authored world tree and validates the currently supported node data.
-///
-/// # Errors
-/// Returns an error for invalid JSON, unsupported node types or primitives,
-/// malformed transforms, or a mesh node without mesh information.
-pub fn parse(source: &str) -> Result<WorldSource, serde_json::Error> {
-    let world: WorldSource = serde_json::from_str(source)?;
-    validate_node(&world.root)?;
-    Ok(world)
-}
-
-fn validate_node(node: &NodeSource) -> Result<(), serde_json::Error> {
-    if node.kind == NodeType::Mesh && node.mesh.is_none() {
-        return Err(serde::de::Error::custom(format!(
-            "Mesh node '{}' requires mesh information",
-            node.id
-        )));
-    }
-    for child in &node.children {
-        validate_node(child)?;
-    }
-    Ok(())
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WorldSource {
@@ -96,6 +72,30 @@ pub struct MeshSource {
 #[serde(deny_unknown_fields)]
 pub struct ColliderSource {
     pub shape: String,
+}
+
+/// Parses the authored world tree and validates the currently supported node data.
+///
+/// # Errors
+/// Returns an error for invalid JSON, unsupported node types or primitives,
+/// malformed transforms, or a mesh node without mesh information.
+pub fn parse(source: &str) -> Result<WorldSource, serde_json::Error> {
+    let world: WorldSource = serde_json::from_str(source)?;
+    validate_node(&world.root)?;
+    Ok(world)
+}
+
+fn validate_node(node: &NodeSource) -> Result<(), serde_json::Error> {
+    if node.kind == NodeType::Mesh && node.mesh.is_none() {
+        return Err(serde::de::Error::custom(format!(
+            "Mesh node '{}' requires mesh information",
+            node.id
+        )));
+    }
+    for child in &node.children {
+        validate_node(child)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

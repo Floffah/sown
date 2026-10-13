@@ -15,7 +15,7 @@ use winit::platform::web::EventLoopExtWebSys;
 
 pub struct State {
     window: Arc<Window>,
-    renderer: crate::renderer::Renderer,
+    renderer: renderer::Renderer,
     ecs: engine::ecs::Ecs,
 }
 
@@ -27,7 +27,8 @@ impl State {
         ))?;
         let mut ecs = engine::ecs::Ecs::from_source(&source).map_err(anyhow::Error::msg)?;
         engine::ecs::scene::spawn_camera(&mut ecs.world);
-        let renderer = crate::renderer::Renderer::new(window.clone()).await?;
+        let size = window.inner_size();
+        let renderer = renderer::Renderer::new(window.clone(), size.width, size.height).await?;
         Ok(Self {
             window,
             renderer,
@@ -37,6 +38,9 @@ impl State {
 
     pub fn resize(&mut self, width: u32, height: u32) {
         self.renderer.resize(width, height);
+        if width > 0 && height > 0 {
+            self.window.request_redraw();
+        }
     }
 
     fn handle_key(event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
@@ -89,7 +93,7 @@ impl ApplicationHandler<State> for App {
 
             const CANVAS_ID: &str = "canvas";
 
-            let window = wgpu::web_sys::window().unwrap_throw();
+            let window = web_sys::window().unwrap_throw();
             let document = window.document().unwrap_throw();
             let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
             let html_canvas_element = canvas.unchecked_into();
@@ -156,7 +160,8 @@ impl ApplicationHandler<State> for App {
             } => State::handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
                 match state.renderer.render(&mut state.ecs.world) {
-                    Ok(()) => {}
+                    Ok(renderer::RenderOutcome::Retry) => state.window.request_redraw(),
+                    Ok(renderer::RenderOutcome::Presented | renderer::RenderOutcome::Skipped) => {}
                     Err(e) => {
                         // Log the error and exit gracefully
                         log::error!("{e}");

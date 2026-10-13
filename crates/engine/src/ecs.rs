@@ -1,10 +1,10 @@
 //! Standalone ECS state and scheduling, independent of the scene and renderer.
 
-pub mod scene;
-mod source;
-
 pub use bevy_ecs;
 use bevy_ecs::prelude::{Schedule, World};
+
+pub mod scene;
+mod source;
 
 /// An ECS world with a schedule that the caller advances explicitly.
 #[derive(Default)]

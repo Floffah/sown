@@ -36,6 +36,23 @@ pub struct Material {
     pub color: [f32; 3],
 }
 
+/// Spawns a unit cube at the origin
+pub fn spawn_cube(world: &mut World) -> Entity {
+    world
+        .spawn((
+            Transform {
+                translation: [0.0; 3],
+                rotation: [0.0, 0.0, 0.0, 1.0],
+                scale: [1.0; 3],
+            },
+            Mesh::Primitive(MeshPrimitive::Cube),
+            Material {
+                color: [0.9, 0.3, 0.15],
+            },
+        ))
+        .id()
+}
+
 /// A perspective camera looking along local -Z, with local +Y as up.
 /// Position and orientation come from its `Transform`; scale is ignored.
 #[derive(Component, Debug, PartialEq)]
@@ -68,23 +85,6 @@ pub fn spawn_camera(world: &mut World) -> Entity {
                 fov_y_radians: 60.0_f32.to_radians(),
                 near: 0.1,
                 far: 100.0,
-            },
-        ))
-        .id()
-}
-
-/// Spawns a unit cube at the origin
-pub fn spawn_cube(world: &mut World) -> Entity {
-    world
-        .spawn((
-            Transform {
-                translation: [0.0; 3],
-                rotation: [0.0, 0.0, 0.0, 1.0],
-                scale: [1.0; 3],
-            },
-            Mesh::Primitive(MeshPrimitive::Cube),
-            Material {
-                color: [0.9, 0.3, 0.15],
             },
         ))
         .id()

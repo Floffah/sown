@@ -5,12 +5,11 @@ build:
     cargo build --workspace --release
 
 [arg("profile", long)]
-check profile="test": clippy test #  (fixtures profile)
+check profile="test": clippy test (fixtures profile)
     cargo fmt --all --check
 
-
 fixtures profile="dev":
-    cargo run --locked --quiet --profile {{profile}} -p brixin-cli -- check fixtures/minimal-room
+    cargo run --locked --quiet --profile {{profile}} -p cli -- check fixtures/minimal-room
 
 alias run := run-client
 run-client:

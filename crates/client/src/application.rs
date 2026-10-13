@@ -22,10 +22,12 @@ pub struct State {
 impl State {
     /// # Errors
     pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
-        let renderer = crate::renderer::Renderer::new(window.clone()).await?;
-        let mut ecs = engine::ecs::Ecs::default();
-        engine::ecs::scene::spawn_cube(&mut ecs.world);
+        let source = project::world::parse(include_str!(
+            "../../../fixtures/minimal-room/worlds/main.world"
+        ))?;
+        let mut ecs = engine::ecs::Ecs::from_source(&source).map_err(anyhow::Error::msg)?;
         engine::ecs::scene::spawn_camera(&mut ecs.world);
+        let renderer = crate::renderer::Renderer::new(window.clone()).await?;
         Ok(Self {
             window,
             renderer,

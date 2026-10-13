@@ -19,7 +19,7 @@
           "scale": [20, 1, 20]
         },
         "mesh": {
-          "primitive": "box"
+          "primitive": "cube"
         },
         "collider": {
           "shape": "box"
@@ -34,7 +34,7 @@
           "scale": [20, 5, 1]
         },
         "mesh": {
-          "primitive": "box"
+          "primitive": "cube"
         },
         "collider": {
           "shape": "box"
@@ -49,7 +49,7 @@
           "scale": [20, 5, 1]
         },
         "mesh": {
-          "primitive": "box"
+          "primitive": "cube"
         },
         "collider": {
           "shape": "box"
@@ -64,7 +64,7 @@
           "scale": [1, 5, 20]
         },
         "mesh": {
-          "primitive": "box"
+          "primitive": "cube"
         },
         "collider": {
           "shape": "box"
@@ -79,7 +79,7 @@
           "scale": [1, 5, 20]
         },
         "mesh": {
-          "primitive": "box"
+          "primitive": "cube"
         },
         "collider": {
           "shape": "box"

@@ -1,7 +1,22 @@
 //! Scene components and directly authored prototype entities.
 
 use bevy_ecs::prelude::{Component, Entity, World};
+pub use project::world::MeshPrimitive;
+use project::world::NodeType;
 
+/// Identity and type of an authored world node.
+#[derive(Component, Debug)]
+pub struct Node {
+    pub id: String,
+    pub name: String,
+    pub kind: NodeType,
+}
+
+/// The authored transform relative to the node's parent.
+#[derive(Component, Debug)]
+pub struct LocalTransform(pub Transform);
+
+/// World-space transform consumed by rendering.
 #[derive(Component, Debug, PartialEq)]
 pub struct Transform {
     pub translation: [f32; 3],
@@ -10,10 +25,10 @@ pub struct Transform {
     pub scale: [f32; 3],
 }
 
-#[derive(Component, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Mesh {
-    /// A unit cube centred on the origin.
-    Cube,
+    /// Built-in primitive geometry shared with the source format.
+    Primitive(MeshPrimitive),
 }
 
 #[derive(Component, Debug, PartialEq)]
@@ -58,7 +73,7 @@ pub fn spawn_camera(world: &mut World) -> Entity {
         .id()
 }
 
-/// Spawns a unit cube at the origin. Call on an empty world for a single-cube scene.
+/// Spawns a unit cube at the origin
 pub fn spawn_cube(world: &mut World) -> Entity {
     world
         .spawn((
@@ -67,7 +82,7 @@ pub fn spawn_cube(world: &mut World) -> Entity {
                 rotation: [0.0, 0.0, 0.0, 1.0],
                 scale: [1.0; 3],
             },
-            Mesh::Cube,
+            Mesh::Primitive(MeshPrimitive::Cube),
             Material {
                 color: [0.9, 0.3, 0.15],
             },
@@ -92,7 +107,10 @@ mod tests {
             .iter(&world)
             .collect();
         assert_eq!(meshes, [cube]);
-        assert_eq!(world.get::<Mesh>(cube), Some(&Mesh::Cube));
+        assert_eq!(
+            world.get::<Mesh>(cube),
+            Some(&Mesh::Primitive(MeshPrimitive::Cube))
+        );
         assert_eq!(
             world.get::<Transform>(cube),
             Some(&Transform {

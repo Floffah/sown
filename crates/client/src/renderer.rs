@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use engine::ecs::{
     bevy_ecs::prelude::World,
-    scene::{Camera, Material, Mesh, Transform},
+    scene::{Camera, Material, Mesh, MeshPrimitive, Transform},
 };
 use wgpu::util::DeviceExt;
 use wgpu::{BackendOptions, InstanceFlags, MemoryBudgetThresholds, MemoryHints};
@@ -19,7 +19,7 @@ pub(crate) struct Renderer {
     camera: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     depth: Option<wgpu::TextureView>,
-    mesh: wgpu::Buffer,
+    cube_mesh: wgpu::Buffer,
 }
 
 impl Renderer {
@@ -90,7 +90,7 @@ impl Renderer {
             color_space: wgpu::SurfaceColorSpace::Auto,
         };
 
-        let mesh = create_cube_mesh(&device);
+        let cube_mesh = create_cube_mesh(&device);
         let pipeline = create_pipeline(&device, surface_format);
         let camera = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ECS camera"),
@@ -118,7 +118,7 @@ impl Renderer {
             camera,
             camera_bind_group,
             depth: None,
-            mesh,
+            cube_mesh,
         })
     }
 
@@ -186,9 +186,7 @@ impl Renderer {
                 label: Some("Render Encoder"),
             });
 
-        let instances = extract_cubes(world);
-        let object_count = u32::try_from(instances.len() / 52)?;
-        let objects = upload_objects(&self.device, &instances);
+        let batches = upload_meshes(&self.device, extract_meshes(world))?;
         draw_scene(
             &mut encoder,
             &view,
@@ -197,9 +195,8 @@ impl Renderer {
                 .expect("Configured surface has a depth buffer"),
             &self.pipeline,
             &self.camera_bind_group,
-            &self.mesh,
-            &objects,
-            object_count,
+            &self.cube_mesh,
+            &batches,
         );
 
         // submit will accept anything that implements IntoIter
@@ -285,30 +282,49 @@ fn create_cube_mesh(device: &wgpu::Device) -> wgpu::Buffer {
 }
 
 // Each instance contains translation (3), rotation (4), scale (3), and colour (3).
-fn extract_cubes(world: &mut World) -> Vec<u8> {
-    world
-        .query::<(&Transform, &Mesh, &Material)>()
-        .iter(world)
-        .flat_map(|(transform, mesh, material)| match mesh {
-            Mesh::Cube => transform
+fn extract_meshes(world: &mut World) -> HashMap<Mesh, Vec<u8>> {
+    let mut meshes = HashMap::<Mesh, Vec<u8>>::new();
+    for (transform, mesh, material) in world.query::<(&Transform, &Mesh, &Material)>().iter(world) {
+        meshes.entry(*mesh).or_default().extend(
+            transform
                 .translation
                 .into_iter()
                 .chain(transform.rotation)
                 .chain(transform.scale)
-                .chain(material.color),
-        })
-        .flat_map(f32::to_le_bytes)
-        .collect()
+                .chain(material.color)
+                .flat_map(f32::to_le_bytes),
+        );
+    }
+    meshes
 }
 
-fn upload_objects(device: &wgpu::Device, bytes: &[u8]) -> wgpu::Buffer {
+struct MeshBatch {
+    mesh: Mesh,
+    instances: wgpu::Buffer,
+    instance_count: u32,
+}
+
+fn upload_meshes(
+    device: &wgpu::Device,
+    meshes: HashMap<Mesh, Vec<u8>>,
+) -> anyhow::Result<Vec<MeshBatch>> {
     // shortcut: recreate the instance buffer per redraw; reuse it when allocation becomes a bottleneck.
-    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("ECS cube instances"),
-        // Keep a valid vertex buffer bound even when there are no instances to draw.
-        contents: if bytes.is_empty() { &[0; 52] } else { bytes },
-        usage: wgpu::BufferUsages::VERTEX,
-    })
+    meshes
+        .into_iter()
+        .map(|(mesh, bytes)| {
+            let instance_count = u32::try_from(bytes.len() / 52)?;
+            let instances = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ECS mesh instances"),
+                contents: &bytes,
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            Ok(MeshBatch {
+                mesh,
+                instances,
+                instance_count,
+            })
+        })
+        .collect()
 }
 
 fn create_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
@@ -382,16 +398,14 @@ fn create_depth(device: &wgpu::Device, width: u32, height: u32) -> wgpu::Texture
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn draw_scene(
     encoder: &mut wgpu::CommandEncoder,
     color: &wgpu::TextureView,
     depth: &wgpu::TextureView,
     pipeline: &wgpu::RenderPipeline,
     camera: &wgpu::BindGroup,
-    mesh: &wgpu::Buffer,
-    objects: &wgpu::Buffer,
-    object_count: u32,
+    cube_mesh: &wgpu::Buffer,
+    batches: &[MeshBatch],
 ) {
     let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("Cube render pass"),
@@ -423,9 +437,14 @@ fn draw_scene(
     });
     pass.set_pipeline(pipeline);
     pass.set_bind_group(0, camera, &[]);
-    pass.set_vertex_buffer(0, mesh.slice(..));
-    pass.set_vertex_buffer(1, objects.slice(..));
-    pass.draw(0..36, 0..object_count);
+    for batch in batches {
+        let (mesh, vertex_count) = match batch.mesh {
+            Mesh::Primitive(MeshPrimitive::Cube) => (cube_mesh, 36),
+        };
+        pass.set_vertex_buffer(0, mesh.slice(..));
+        pass.set_vertex_buffer(1, batch.instances.slice(..));
+        pass.draw(0..vertex_count, 0..batch.instance_count);
+    }
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -466,11 +485,12 @@ mod tests {
     }
 
     #[test]
-    fn cube_instances_follow_ecs_changes() {
+    fn mesh_batches_follow_ecs_changes() {
         let mut world = World::new();
-        assert_eq!(extract_cubes(&mut world), []);
-        world.spawn(Mesh::Cube);
-        assert_eq!(extract_cubes(&mut world), []);
+        let mesh = Mesh::Primitive(MeshPrimitive::Cube);
+        assert_eq!(extract_meshes(&mut world), HashMap::new());
+        world.spawn(mesh);
+        assert_eq!(extract_meshes(&mut world), HashMap::new());
 
         let cube = engine::ecs::scene::spawn_cube(&mut world);
         world.get_mut::<Transform>(cube).unwrap().translation = [1.0, 2.0, 3.0];
@@ -483,14 +503,22 @@ mod tests {
         .into_iter()
         .flat_map(f32::to_le_bytes)
         .collect();
-        assert_eq!(extract_cubes(&mut world), expected);
+        assert_eq!(
+            extract_meshes(&mut world),
+            HashMap::from([(mesh, expected.clone())])
+        );
 
         let second = engine::ecs::scene::spawn_cube(&mut world);
-        assert_eq!(extract_cubes(&mut world).len(), 2 * 52);
+        let batches = extract_meshes(&mut world);
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[&mesh].len(), 2 * 52);
         world.entity_mut(second).remove::<Material>();
-        assert_eq!(extract_cubes(&mut world), expected);
+        assert_eq!(
+            extract_meshes(&mut world),
+            HashMap::from([(mesh, expected)])
+        );
         world.despawn(cube);
-        assert_eq!(extract_cubes(&mut world), []);
+        assert_eq!(extract_meshes(&mut world), HashMap::new());
     }
 
     fn read_pixels(
@@ -576,8 +604,7 @@ mod tests {
                     transform.rotation = [0.0, 1.0, 0.0, 0.0];
                     world.get_mut::<Material>(back).unwrap().color = [0.0, 1.0, 0.0];
                 }
-                let instances = extract_cubes(&mut world);
-                let objects = upload_objects(&device, &instances);
+                let batches = upload_meshes(&device, extract_meshes(&mut world)).unwrap();
                 // Exercise aspect ratios and a camera turned away from the cubes.
                 for (width, height, aspect, visible) in [
                     (64, 64, 1.0_f32, true),
@@ -619,8 +646,7 @@ mod tests {
                         &pipeline,
                         &bind_group,
                         &mesh,
-                        &objects,
-                        cube_count,
+                        &batches,
                     );
                     let pixels = read_pixels(&device, &queue, encoder, &target);
                     if cube_count == 0 || !visible {

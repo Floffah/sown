@@ -13,7 +13,7 @@ fixtures profile="dev":
 
 alias run := run-client
 run-client:
-    cargo run crates/client
+    cargo run --bin client
 
 run-server:
     cargo run crates/server --world=fixtures/minimal-room

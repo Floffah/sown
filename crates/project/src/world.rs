@@ -55,10 +55,11 @@ pub enum NodeType {
     Mesh,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Primitive {
-    Box,
+pub enum MeshPrimitive {
+    /// A unit cube centred on the origin.
+    Cube,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -88,7 +89,7 @@ pub struct TransformSource {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeshSource {
-    pub primitive: Primitive,
+    pub primitive: MeshPrimitive,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -110,7 +111,7 @@ mod tests {
         assert_eq!(world.root.children.len(), 5);
         let floor = &world.root.children[0];
         assert_eq!(floor.kind, NodeType::Mesh);
-        assert_eq!(floor.mesh.as_ref().unwrap().primitive, Primitive::Box);
+        assert_eq!(floor.mesh.as_ref().unwrap().primitive, MeshPrimitive::Cube);
         assert_eq!(
             floor.transform.as_ref().unwrap().position,
             Some([0.0, -0.5, 0.0])
@@ -128,6 +129,7 @@ mod tests {
         for (field, value) in [
             ("type", serde_json::json!("Unknown")),
             ("mesh", serde_json::json!({"primitive": "sphere"})),
+            ("mesh", serde_json::json!({"primitive": "box"})),
             ("mesh", serde_json::Value::Null),
             ("transform", serde_json::json!({"position": [0, 1]})),
             ("transform", serde_json::json!({"scale": [1, "bad", 1]})),

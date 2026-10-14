@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
+use web_time::Instant;
 use winit::{
     application::ApplicationHandler,
     event::{KeyEvent, WindowEvent},
@@ -13,10 +14,17 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::EventLoopExtWebSys;
 
+use crate::input::MovementKeys;
+
+// Limit catch-up after a stalled frame so held input cannot cause a large jump.
+const MAX_FRAME_TIME: Duration = Duration::from_millis(100);
+
 pub struct State {
     window: Arc<Window>,
     renderer: renderer::Renderer,
     ecs: engine::ecs::Ecs,
+    movement_keys: MovementKeys,
+    last_frame: Instant,
 }
 
 impl State {
@@ -33,6 +41,8 @@ impl State {
             window,
             renderer,
             ecs,
+            movement_keys: MovementKeys::default(),
+            last_frame: Instant::now(),
         })
     }
 
@@ -43,10 +53,25 @@ impl State {
         }
     }
 
-    fn handle_key(event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+    fn handle_key(&mut self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
+        self.movement_keys.set(code, is_pressed);
         if let (KeyCode::Escape, true) = (code, is_pressed) {
             event_loop.exit();
         }
+    }
+
+    fn reset_input(&mut self) {
+        self.movement_keys.clear();
+        self.ecs.world.insert_resource(self.movement_keys.intent());
+        self.last_frame = Instant::now();
+    }
+
+    fn update(&mut self) {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_frame).min(MAX_FRAME_TIME);
+        self.last_frame = now;
+        self.ecs.world.insert_resource(self.movement_keys.intent());
+        self.ecs.tick(elapsed);
     }
 }
 
@@ -73,6 +98,7 @@ impl App {
 impl ApplicationHandler<State> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(state) = &mut self.state {
+            state.reset_input();
             let size = state.window.inner_size();
             state.resize(size.width, size.height);
             return;
@@ -137,6 +163,12 @@ impl ApplicationHandler<State> for App {
         self.state = Some(event);
     }
 
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(state) = &mut self.state {
+            state.reset_input();
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -149,6 +181,11 @@ impl ApplicationHandler<State> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
             WindowEvent::Occluded(false) => state.window.request_redraw(),
+            WindowEvent::Focused(false) | WindowEvent::Occluded(true) => state.reset_input(),
+            WindowEvent::Focused(true) => {
+                state.last_frame = Instant::now();
+                state.window.request_redraw();
+            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -157,11 +194,14 @@ impl ApplicationHandler<State> for App {
                         ..
                     },
                 ..
-            } => State::handle_key(event_loop, code, key_state.is_pressed()),
+            } => state.handle_key(event_loop, code, key_state.is_pressed()),
             WindowEvent::RedrawRequested => {
+                state.update();
                 match state.renderer.render(&mut state.ecs.world) {
-                    Ok(renderer::RenderOutcome::Retry) => state.window.request_redraw(),
-                    Ok(renderer::RenderOutcome::Presented | renderer::RenderOutcome::Skipped) => {}
+                    Ok(renderer::RenderOutcome::Presented | renderer::RenderOutcome::Retry) => {
+                        state.window.request_redraw();
+                    }
+                    Ok(renderer::RenderOutcome::Skipped) => {}
                     Err(e) => {
                         // Log the error and exit gracefully
                         log::error!("{e}");

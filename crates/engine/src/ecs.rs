@@ -1,25 +1,40 @@
 //! Standalone ECS state and scheduling, independent of the scene and renderer.
 
 pub use bevy_ecs;
-use bevy_ecs::prelude::{Schedule, World};
+use bevy_ecs::prelude::{Resource, Schedule, World};
+use std::time::Duration;
 
 pub mod player;
 pub mod scene;
 mod source;
 
 /// An ECS world with a schedule that the caller advances explicitly.
-#[derive(Default)]
 pub struct Ecs {
     pub world: World,
     pub schedule: Schedule,
 }
 
+impl Default for Ecs {
+    fn default() -> Self {
+        let mut world = World::new();
+        world.insert_resource(player::MovementIntent::default());
+        world.insert_resource(FrameTime::default());
+        let mut schedule = Schedule::default();
+        schedule.add_systems(player::move_local_player);
+        Self { world, schedule }
+    }
+}
+
 impl Ecs {
-    /// Runs the registered systems once against this instance's world.
-    pub fn tick(&mut self) {
+    /// Advances the registered systems by the elapsed time supplied by the caller.
+    pub fn tick(&mut self, elapsed: Duration) {
+        self.world.resource_mut::<FrameTime>().0 = elapsed;
         self.schedule.run(&mut self.world);
     }
 }
+
+#[derive(Resource, Default)]
+struct FrameTime(Duration);
 
 #[cfg(test)]
 mod tests {
@@ -41,7 +56,7 @@ mod tests {
         ecs.schedule.add_systems(increment);
 
         for expected in 1..=3 {
-            ecs.tick();
+            ecs.tick(std::time::Duration::ZERO);
             assert_eq!(ecs.world.get::<Counter>(entity).unwrap().0, expected);
         }
     }

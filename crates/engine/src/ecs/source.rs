@@ -51,7 +51,7 @@ fn spawn_node(
             &source.id,
         )?,
     };
-    // shortcut: compose translation and scale at load time; add propagation systems for runtime hierarchy edits.
+    // Compose translation and scale with the parent's world transform at load time.
     let translation = std::array::from_fn(|axis| {
         parent_translation[axis] + parent_scale[axis] * local.translation[axis]
     });

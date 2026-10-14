@@ -21,12 +21,6 @@ run-server:
 clippy:
     cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic
 
-release profile="dev":
-    cargo run --locked --quiet --profile {{profile}} -p brixin-cli -- build fixtures/minimal-room
-
-release-digest profile="dev":
-    cargo run --locked --quiet --profile {{profile}} -p brixin-cli -- build fixtures/minimal-room | cut -d' ' -f2
-
 format:
     cargo fmt --all
 

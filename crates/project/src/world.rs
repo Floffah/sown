@@ -46,7 +46,6 @@ pub enum Scope {
     Client,
 }
 
-// shortcut: behaviour attachment resolution is not wired up yet; remove when it is used.
 #[allow(dead_code)]
 pub(crate) struct BehaviourAttachment<'source> {
     pub(crate) uri: &'source str,
@@ -74,7 +73,7 @@ pub struct ColliderSource {
     pub shape: String,
 }
 
-/// Parses the authored world tree and validates the currently supported node data.
+/// Parses the authored world tree and validates its node data.
 ///
 /// # Errors
 /// Returns an error for invalid JSON, unsupported node types or primitives,

@@ -2,7 +2,7 @@ use bevy_ecs::prelude::{Component, Entity, World};
 
 use super::scene::{Camera, Transform};
 
-/// Identifies a player entity. Session/network identity is not assigned yet.
+/// Identifies a player entity.
 #[derive(Component, Debug)]
 pub struct Player;
 

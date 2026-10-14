@@ -43,8 +43,6 @@ impl Renderer {
         width: u32,
         height: u32,
     ) -> anyhow::Result<Self> {
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             #[cfg(not(target_arch = "wasm32"))]
             backends: wgpu::Backends::PRIMARY,
@@ -72,8 +70,7 @@ impl Renderer {
                 label: None,
                 required_features: wgpu::Features::empty(),
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
+                // Use WebGL2-compatible limits for the browser backend.
                 required_limits: if cfg!(target_arch = "wasm32") {
                     wgpu::Limits::downlevel_webgl2_defaults()
                 } else {
@@ -85,9 +82,7 @@ impl Renderer {
             .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an sRGB surface texture. Using a different
-        // one will result in all the colors coming out darker. If you want to support non
-        // sRGB surfaces, you'll need to account for that when drawing to the frame.
+        // Prefer an sRGB surface for the shader's linear colour output.
         let surface_format = surface_caps
             .formats
             .iter()
@@ -191,8 +186,6 @@ impl Renderer {
                 return Ok(RenderOutcome::Retry);
             }
             wgpu::CurrentSurfaceTexture::Lost => {
-                // You could recreate the devices and all resources
-                // created with it here, but we'll just bail
                 anyhow::bail!("Lost device");
             }
         };
@@ -247,7 +240,7 @@ fn upload_meshes(
     device: &wgpu::Device,
     meshes: HashMap<Mesh, Vec<u8>>,
 ) -> anyhow::Result<Vec<MeshBatch>> {
-    // shortcut: recreate the instance buffer per redraw; reuse it when allocation becomes a bottleneck.
+    // Create an instance buffer for each mesh batch in this redraw.
     meshes
         .into_iter()
         .map(|(mesh, bytes)| {

@@ -1,0 +1,24 @@
+name: Housekeeping
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: extractions/setup-just@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run Rust checks
+        run: just check

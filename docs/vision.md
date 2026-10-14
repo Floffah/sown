@@ -1,5 +1,4 @@
-# Sown
-### Project Vision
+# Sown Project Vision
 **Status:** Draft · October 2026
 
 ## 1. Introduction

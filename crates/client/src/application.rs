@@ -26,7 +26,7 @@ impl State {
             "../../../fixtures/minimal-room/worlds/main.world"
         ))?;
         let mut ecs = engine::ecs::Ecs::from_source(&source).map_err(anyhow::Error::msg)?;
-        engine::ecs::scene::spawn_camera(&mut ecs.world);
+        engine::ecs::player::spawn_local_player(&mut ecs.world);
         let size = window.inner_size();
         let renderer = renderer::Renderer::new(window.clone(), size.width, size.height).await?;
         Ok(Self {

@@ -3,6 +3,7 @@
 pub use bevy_ecs;
 use bevy_ecs::prelude::{Schedule, World};
 
+pub mod player;
 pub mod scene;
 mod source;
 

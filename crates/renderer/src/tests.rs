@@ -72,7 +72,7 @@ fn ecs_cubes_render_offscreen() {
         });
         for cube_count in 0..=2 {
             let mut world = World::new();
-            let camera_entity = engine::ecs::scene::spawn_camera(&mut world);
+            let camera_entity = engine::ecs::player::spawn_local_player(&mut world);
             if cube_count > 0 {
                 engine::ecs::scene::spawn_cube(&mut world);
             }

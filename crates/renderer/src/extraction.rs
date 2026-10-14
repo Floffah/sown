@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
 use engine::ecs::{
-    bevy_ecs::prelude::World,
+    bevy_ecs::prelude::{With, World},
+    player::{LocalPlayer, Player},
     scene::{Camera, Material, Mesh, Transform},
 };
 
 pub(super) fn extract_camera(world: &mut World, aspect: f32) -> anyhow::Result<[f32; 12]> {
-    let mut cameras = world.query::<(&Camera, &Transform)>();
+    let mut cameras =
+        world.query_filtered::<(&Camera, &Transform), (With<Player>, With<LocalPlayer>)>();
     let (camera, transform) = cameras.single(world).map_err(|error| {
-        anyhow::anyhow!("Expected exactly one camera with a Transform: {error}")
+        anyhow::anyhow!("Expected exactly one local player with Camera and Transform: {error}")
     })?;
     anyhow::ensure!(
         camera.fov_y_radians.is_finite()
@@ -73,10 +75,26 @@ mod tests {
     use engine::ecs::scene::MeshPrimitive;
 
     #[test]
+    fn ignores_nonlocal_player_cameras() {
+        let mut world = World::new();
+        let remote = engine::ecs::player::spawn_local_player(&mut world);
+        world.entity_mut(remote).remove::<LocalPlayer>();
+        assert!(extract_camera(&mut world, 1.0).is_err());
+
+        let local = engine::ecs::player::spawn_local_player(&mut world);
+        let expected = extract_camera(&mut world, 1.0).unwrap();
+        world.get_mut::<Transform>(remote).unwrap().translation = [99.0; 3];
+        world.get_mut::<Camera>(remote).unwrap().near = -1.0;
+        assert_eq!(extract_camera(&mut world, 1.0).unwrap(), expected);
+        world.entity_mut(local).remove::<Player>();
+        assert!(extract_camera(&mut world, 1.0).is_err());
+    }
+
+    #[test]
     fn camera_uniform_follows_ecs_changes() {
         let mut world = World::new();
         assert!(extract_camera(&mut world, 1.0).is_err());
-        let entity = engine::ecs::scene::spawn_camera(&mut world);
+        let entity = engine::ecs::player::spawn_local_player(&mut world);
         let camera = extract_camera(&mut world, 2.0).unwrap();
         assert_eq!(&camera[..4], &[3.0, 3.0, 5.0, 0.0]);
         assert!((camera[8] - 3.0_f32.sqrt()).abs() < 0.00001);
@@ -98,7 +116,7 @@ mod tests {
         world.get_mut::<Transform>(entity).unwrap().rotation = [0.0; 4];
         assert!(extract_camera(&mut world, 1.0).is_err());
         world.get_mut::<Transform>(entity).unwrap().rotation = [0.0, 0.0, 0.0, 1.0];
-        let second = engine::ecs::scene::spawn_camera(&mut world);
+        let second = engine::ecs::player::spawn_local_player(&mut world);
         assert!(extract_camera(&mut world, 1.0).is_err());
         world.despawn(second);
         world.entity_mut(entity).remove::<Transform>();

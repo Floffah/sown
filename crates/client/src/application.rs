@@ -228,8 +228,19 @@ pub fn run() -> anyhow::Result<()> {
     let event_loop = EventLoop::with_user_event().build()?;
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let network_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()?;
+        let network_task = network_runtime.spawn(async {
+            if let Err(error) = crate::connection::run().await {
+                eprintln!("QUIC connection failed: {error:#}");
+            }
+        });
         let mut app = App::new();
-        event_loop.run_app(&mut app)?;
+        let result = event_loop.run_app(&mut app);
+        network_task.abort();
+        result?;
     }
     #[cfg(target_arch = "wasm32")]
     {

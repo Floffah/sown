@@ -9,7 +9,7 @@ use crate::{decode_body, decode_length, encode_message};
 /// Reads one length-prefixed protobuf message from a QUIC stream.
 ///
 /// Cancelling this operation can consume part of a frame. Close the stream
-/// rather than restarting a cancelled read on the same stream.
+/// instead.
 ///
 /// # Errors
 /// Returns an error for truncated frames, invalid protobuf data, oversized

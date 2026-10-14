@@ -35,6 +35,7 @@ fn create_endpoint(
         .with_no_client_auth()
         .with_single_cert(vec![certificate], key)?;
     tls.alpn_protocols = vec![ALPN.to_vec()];
+    tls.key_log = Arc::new(rustls::KeyLogFile::new());
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls)?));
     let mut transport = quinn::TransportConfig::default();
     transport.max_concurrent_bidi_streams(2_u8.into());

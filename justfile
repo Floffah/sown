@@ -1,8 +1,12 @@
 default:
     @just --list
 
-build:
+build: generate-protocol
     cargo build --workspace --release
+
+generate-protocol:
+    buf generate
+    cargo fmt -p protocol
 
 [arg("profile", long)]
 check profile="test": clippy test (fixtures profile)

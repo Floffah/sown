@@ -1,0 +1,7 @@
+[package]
+name = "protocol"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+prost = "0.14"

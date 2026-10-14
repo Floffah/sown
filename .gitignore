@@ -311,3 +311,6 @@ Cargo.lock
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,macos,visualstudiocode,jetbrains+all,node,react
+
+# Managed Sown state
+.sown/

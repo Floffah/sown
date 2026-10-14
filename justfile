@@ -20,7 +20,7 @@ run-client:
     cargo run --bin client
 
 run-server:
-    cargo run crates/server --world=fixtures/minimal-room
+    cargo run --bin server
 
 clippy:
     cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic

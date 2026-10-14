@@ -8,33 +8,33 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Vector3 {
-    #[prost(uint32, tag="1")]
-    pub x: u32,
-    #[prost(uint32, tag="2")]
-    pub y: u32,
-    #[prost(uint32, tag="3")]
-    pub z: u32,
+    #[prost(float, tag = "1")]
+    pub x: f32,
+    #[prost(float, tag = "2")]
+    pub y: f32,
+    #[prost(float, tag = "3")]
+    pub z: f32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Quaternion {
-    #[prost(uint32, tag="1")]
-    pub x: u32,
-    #[prost(uint32, tag="2")]
-    pub y: u32,
-    #[prost(uint32, tag="3")]
-    pub z: u32,
-    #[prost(uint32, tag="4")]
-    pub w: u32,
+    #[prost(float, tag = "1")]
+    pub x: f32,
+    #[prost(float, tag = "2")]
+    pub y: f32,
+    #[prost(float, tag = "3")]
+    pub z: f32,
+    #[prost(float, tag = "4")]
+    pub w: f32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Transform {
-    #[prost(message, optional, tag="1")]
+    #[prost(message, optional, tag = "1")]
     pub translation: ::core::option::Option<Vector3>,
-    #[prost(message, optional, tag="2")]
+    #[prost(message, optional, tag = "2")]
     pub rotation: ::core::option::Option<Quaternion>,
-    #[prost(message, optional, tag="3")]
+    #[prost(message, optional, tag = "3")]
     pub scale: ::core::option::Option<Vector3>,
 }
 // -- RELIABLE STREAM 1: CONTROL --
@@ -42,29 +42,29 @@ pub struct Transform {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ControlClientHello {
-    #[prost(uint32, tag="1")]
+    #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ControlServerWelcome {
-    #[prost(uint32, tag="1")]
+    #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ControlEnvelope {
-    #[prost(oneof="control_envelope::Payload", tags="1, 2")]
+    #[prost(oneof = "control_envelope::Payload", tags = "1, 2")]
     pub payload: ::core::option::Option<control_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlEnvelope`.
 pub mod control_envelope {
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Payload {
-        #[prost(message, tag="1")]
+        #[prost(message, tag = "1")]
         ClientHello(super::ControlClientHello),
-        #[prost(message, tag="2")]
+        #[prost(message, tag = "2")]
         ServerWelcome(super::ControlServerWelcome),
     }
 }
@@ -73,21 +73,21 @@ pub mod control_envelope {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct EventPlaceholderMessage {
-    #[prost(uint32, tag="1")]
+    #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct EventEnvelope {
-    #[prost(oneof="event_envelope::Payload", tags="1")]
+    #[prost(oneof = "event_envelope::Payload", tags = "1")]
     pub payload: ::core::option::Option<event_envelope::Payload>,
 }
 /// Nested message and enum types in `EventEnvelope`.
 pub mod event_envelope {
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Payload {
-        #[prost(message, tag="1")]
+        #[prost(message, tag = "1")]
         Placeholder(super::EventPlaceholderMessage),
     }
 }
@@ -96,21 +96,21 @@ pub mod event_envelope {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct DatagramClientLocalPlayerMove {
-    #[prost(message, optional, tag="1")]
+    #[prost(message, optional, tag = "1")]
     pub transform: ::core::option::Option<Transform>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct DatagramEnvelope {
-    #[prost(oneof="datagram_envelope::Payload", tags="1")]
+    #[prost(oneof = "datagram_envelope::Payload", tags = "1")]
     pub payload: ::core::option::Option<datagram_envelope::Payload>,
 }
 /// Nested message and enum types in `DatagramEnvelope`.
 pub mod datagram_envelope {
     #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Payload {
-        #[prost(message, tag="1")]
+        #[prost(message, tag = "1")]
         LocalPlayerMove(super::DatagramClientLocalPlayerMove),
     }
 }

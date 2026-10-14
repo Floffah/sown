@@ -3,7 +3,7 @@ syntax = "proto3";
 package sown.protocol.v1;
 
 // naming convention:
-// - message names are StreamSenderPurpose - sender is always who will send it
+// - message names are stream + sender + purpose in pascal case - sender is always who will send it
 
 // -- COMMON TYPES --
 
@@ -26,6 +26,17 @@ message Transform {
   Vector3 scale = 3;
 }
 
+// -- STREAM INDEPENDANT --
+
+enum StreamID {
+  CONTROL = 0;
+  EVENTS = 1;
+}
+
+message StreamHeader {
+  StreamID stream_id = 1;
+}
+
 // -- RELIABLE STREAM 1: CONTROL --
 
 message ControlClientHello {
@@ -36,10 +47,17 @@ message ControlServerWelcome {
   uint32 protocol_version = 1;
 }
 
+message ControlServerError {
+  reserved 1;
+  reserved "error_id";
+  string message = 2;
+}
+
 message ControlEnvelope {
   oneof payload {
     ControlClientHello client_hello = 1;
     ControlServerWelcome server_welcome = 2;
+    ControlServerError server_error = 3;
   }
 }
 

@@ -7,6 +7,8 @@ version.workspace = true
 anyhow = "1.0"
 engine = { path = "../engine" }
 project = { path = "../project" }
+protocol = { path = "../protocol" }
+networking = { path = "../networking", features = ["quic"] }
 quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem"] }
 tokio = { version = "1", features = ["macros", "rt", "signal"] }

@@ -2,14 +2,15 @@ use std::{net::SocketAddr, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
 use engine::ecs::Ecs;
+use networking::ALPN;
 use quinn::{Endpoint, crypto::rustls::QuicServerConfig, rustls};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
+mod session;
 mod tls;
 
 const WORLD: &str = include_str!("../../../fixtures/minimal-room/worlds/main.world");
 const LISTEN_ADDRESS: &str = "127.0.0.1:50420";
-const ALPN: &[u8] = b"sown/1";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -34,7 +35,11 @@ fn create_endpoint(
         .with_no_client_auth()
         .with_single_cert(vec![certificate], key)?;
     tls.alpn_protocols = vec![ALPN.to_vec()];
-    let config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls)?));
+    let mut config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls)?));
+    let mut transport = quinn::TransportConfig::default();
+    transport.max_concurrent_bidi_streams(2_u8.into());
+    transport.max_concurrent_uni_streams(0_u8.into());
+    config.transport_config(Arc::new(transport));
     Endpoint::server(config, address).context("Failed to bind the QUIC endpoint")
 }
 
@@ -51,8 +56,17 @@ async fn serve(endpoint: Endpoint) -> Result<()> {
                     match incoming.await {
                         Ok(connection) => {
                             println!("QUIC connected: {}", connection.remote_address());
-                            let reason = connection.closed().await;
-                            println!("QUIC disconnected: {reason}");
+                            tokio::select! {
+                                reason = connection.closed() => {
+                                    println!("QUIC disconnected: {reason}");
+                                }
+                                result = session::run(&connection) => {
+                                    if let Err(error) = result {
+                                        eprintln!("Session rejected: {error}");
+                                        connection.close(1_u8.into(), error.to_string().as_bytes());
+                                    }
+                                }
+                            }
                         }
                         Err(error) => eprintln!("QUIC connection failed: {error}"),
                     }
@@ -66,45 +80,4 @@ async fn serve(endpoint: Endpoint) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use quinn::crypto::rustls::QuicClientConfig;
-    use rustls::pki_types::PrivatePkcs8KeyDer;
-    use std::time::Duration;
-
-    #[tokio::test]
-    async fn accepts_connections_with_a_trusted_localhost_certificate() -> Result<()> {
-        tokio::time::timeout(Duration::from_secs(5), async {
-            let certificate = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-            let key = PrivatePkcs8KeyDer::from(certificate.signing_key.serialize_der());
-            let server = create_endpoint(
-                "127.0.0.1:0".parse()?,
-                certificate.cert.der().clone(),
-                key.into(),
-            )?;
-            let address = server.local_addr()?;
-            let task = tokio::spawn(serve(server.clone()));
-
-            let mut roots = rustls::RootCertStore::empty();
-            roots.add(certificate.cert.der().clone())?;
-            let mut tls = rustls::ClientConfig::builder()
-                .with_root_certificates(roots)
-                .with_no_client_auth();
-            tls.alpn_protocols = vec![ALPN.to_vec()];
-            let config = quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls)?));
-            let mut client = Endpoint::client("127.0.0.1:0".parse()?)?;
-            client.set_default_client_config(config);
-
-            for _ in 0..2 {
-                let connection = client.connect(address, "localhost")?.await?;
-                assert_eq!(connection.remote_address(), address);
-                connection.close(0_u8.into(), b"Test complete");
-            }
-            server.close(0_u8.into(), b"Test complete");
-            task.await??;
-            client.wait_idle().await;
-            Ok(())
-        })
-        .await?
-    }
-}
+mod tests;

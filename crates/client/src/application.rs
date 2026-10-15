@@ -163,12 +163,6 @@ impl ApplicationHandler<State> for App {
         self.state = Some(event);
     }
 
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(state) = &mut self.state {
-            state.reset_input();
-        }
-    }
-
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -210,6 +204,12 @@ impl ApplicationHandler<State> for App {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(state) = &mut self.state {
+            state.reset_input();
         }
     }
 }

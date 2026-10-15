@@ -19,6 +19,7 @@ alias run := run-client
 run-client:
     cargo run --bin client
 
+[env("SSLKEYLOGFILE", justfile_directory() + "/.sown/tls-keys.log")]
 run-server:
     cargo run --bin server
 

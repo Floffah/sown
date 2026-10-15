@@ -10,11 +10,24 @@ const CERTIFICATE_PATH: &str = ".sown/server-tls.pem";
 
 pub(super) async fn run() -> Result<()> {
     let certificate = CertificateDer::from_pem_file(CERTIFICATE_PATH).with_context(|| {
-        format!("Failed to load {CERTIFICATE_PATH}; run the server from the same working directory first")
+        format!("Failed to load {CERTIFICATE_PATH}: run the server from the same working directory first")
     })?;
     println!("QUIC connecting to {SERVER_ADDRESS}");
     let (endpoint, connection) = connect(SERVER_ADDRESS.parse()?, certificate).await?;
     println!("QUIC connected to {}", connection.remote_address());
+    let result = tokio::time::timeout(Duration::from_secs(10), networking::quic::join(&connection))
+        .await
+        .context("Application handshake timed out")
+        .and_then(|result| result);
+    let _streams = match result {
+        Ok(streams) => streams,
+        Err(error) => {
+            connection.close(1_u8.into(), b"Client handshake failed");
+            endpoint.wait_idle().await;
+            return Err(error);
+        }
+    };
+    println!("Joined server");
     let reason = connection.closed().await;
     println!("QUIC disconnected: {reason}");
     endpoint.wait_idle().await;
@@ -31,7 +44,10 @@ async fn connect(
         .with_root_certificates(roots)
         .with_no_client_auth();
     tls.alpn_protocols = vec![ALPN.to_vec()];
-    let config = quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls)?));
+    let mut config = quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls)?));
+    let mut transport = quinn::TransportConfig::default();
+    transport.keep_alive_interval(Some(Duration::from_secs(5)));
+    config.transport_config(Arc::new(transport));
     let mut endpoint = Endpoint::client("127.0.0.1:0".parse()?)?;
     endpoint.set_default_client_config(config);
     let connection = tokio::time::timeout(
@@ -49,17 +65,20 @@ mod tests {
     use rustls::pki_types::PrivatePkcs8KeyDer;
 
     #[tokio::test]
-    async fn connects_without_streams_and_rejects_an_untrusted_certificate() -> Result<()> {
-        tokio::time::timeout(Duration::from_secs(10), async {
+    async fn idle_connection_stays_alive_and_rejects_an_untrusted_certificate() -> Result<()> {
+        tokio::time::timeout(Duration::from_secs(15), async {
             let certificate = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
             let key = PrivatePkcs8KeyDer::from(certificate.signing_key.serialize_der());
             let mut tls = rustls::ServerConfig::builder()
                 .with_no_client_auth()
                 .with_single_cert(vec![certificate.cert.der().clone()], key.into())?;
             tls.alpn_protocols = vec![ALPN.to_vec()];
-            let config = quinn::ServerConfig::with_crypto(Arc::new(
+            let mut config = quinn::ServerConfig::with_crypto(Arc::new(
                 quinn::crypto::rustls::QuicServerConfig::try_from(tls)?,
             ));
+            let mut transport = quinn::TransportConfig::default();
+            transport.max_idle_timeout(Some(Duration::from_secs(6).try_into()?));
+            config.transport_config(Arc::new(transport));
             let server = Endpoint::server(config, "127.0.0.1:0".parse()?)?;
             let address = server.local_addr()?;
             let accept = async {
@@ -78,6 +97,9 @@ mod tests {
                     .await
                     .is_err()
             );
+            tokio::time::sleep(Duration::from_secs(7)).await;
+            assert!(connection.close_reason().is_none());
+            assert!(server_connection.close_reason().is_none());
 
             let other = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
             let (rejected, _) = tokio::join!(connect(address, other.cert.der().clone()), async {

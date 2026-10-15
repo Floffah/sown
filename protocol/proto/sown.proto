@@ -41,6 +41,9 @@ message StreamHeader {
 
 message ControlClientHello {
   uint32 protocol_version = 1;
+
+  // temp
+  optional string username = 16;
 }
 
 message ControlServerWelcome {

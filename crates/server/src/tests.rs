@@ -2,8 +2,8 @@ use super::*;
 use protocol::{
     Message,
     v1::{
-        ControlClientHello, ControlEnvelope, ControlServerWelcome, EventEnvelope,
-        EventPlaceholderMessage, StreamHeader, StreamId, control_envelope, event_envelope,
+        ControlClientHello, ControlEnvelope, EventEnvelope, EventPlaceholderMessage, StreamHeader,
+        StreamId, control_envelope, event_envelope,
     },
 };
 use quinn::{Connection, crypto::rustls::QuicClientConfig};
@@ -80,35 +80,9 @@ async fn welcomes_client_and_reads_events_while_control_is_idle() -> Result<()> 
     tokio::time::timeout(Duration::from_secs(10), async {
         let server = TestServer::new()?;
         let connection = server.connect().await?;
-        let (mut control_send, mut control_recv) = connection.open_bi().await?;
+        let mut streams = networking::quic::join(&connection).await?;
         networking::quic::write_message(
-            &mut control_send,
-            &StreamHeader {
-                stream_id: StreamId::Control as i32,
-            },
-        )
-        .await?;
-        networking::quic::write_message(&mut control_send, &hello(1)).await?;
-        let welcome: ControlEnvelope = networking::quic::read_message(&mut control_recv).await?;
-        assert_eq!(
-            welcome.payload,
-            Some(control_envelope::Payload::ServerWelcome(
-                ControlServerWelcome {
-                    protocol_version: 1
-                }
-            ))
-        );
-
-        let (mut events_send, _events_recv) = connection.open_bi().await?;
-        networking::quic::write_message(
-            &mut events_send,
-            &StreamHeader {
-                stream_id: StreamId::Events as i32,
-            },
-        )
-        .await?;
-        networking::quic::write_message(
-            &mut events_send,
+            &mut streams.events_send,
             &EventEnvelope {
                 payload: Some(event_envelope::Payload::Placeholder(
                     EventPlaceholderMessage {
@@ -119,7 +93,7 @@ async fn welcomes_client_and_reads_events_while_control_is_idle() -> Result<()> 
         )
         .await?;
         // The invalid next event must be read despite the idle Control stream.
-        events_send.write_all(&[1, 0xff]).await?;
+        streams.events_send.write_all(&[1, 0xff]).await?;
         rejection(&connection, "Invalid protobuf message").await?;
         server.shutdown().await
     })
@@ -154,8 +128,8 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
             (wrong_payload, "Expected ClientHello"),
             (vec![0x81, 0x80, 0x04], "Message exceeds 64 KiB limit"),
             (vec![0x80; 10], "Invalid message length varint"),
-            (vec![0x80], "Truncated message length"),
-            (vec![2, 0x08], "Truncated message body"),
+            (vec![0x80], "Failed to read message length"),
+            (vec![2, 0x08], "Failed to read message body"),
         ];
         let mut second_control = control;
         second_control.extend(hello(1).encode_length_delimited_to_vec());

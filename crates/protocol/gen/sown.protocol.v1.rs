@@ -46,10 +46,13 @@ pub struct StreamHeader {
 // -- RELIABLE STREAM 1: CONTROL --
 
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ControlClientHello {
     #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
+    /// temp
+    #[prost(string, optional, tag = "16")]
+    pub username: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -64,20 +67,22 @@ pub struct ControlServerError {
     pub message: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ControlEnvelope {
-    #[prost(oneof = "control_envelope::Payload", tags = "1, 2")]
+    #[prost(oneof = "control_envelope::Payload", tags = "1, 2, 3")]
     pub payload: ::core::option::Option<control_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlEnvelope`.
 pub mod control_envelope {
     #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
         ClientHello(super::ControlClientHello),
         #[prost(message, tag = "2")]
         ServerWelcome(super::ControlServerWelcome),
+        #[prost(message, tag = "3")]
+        ServerError(super::ControlServerError),
     }
 }
 // -- RELIABLE STREAM 2: EVENTS --

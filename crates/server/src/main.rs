@@ -35,7 +35,11 @@ fn create_endpoint(
         .with_no_client_auth()
         .with_single_cert(vec![certificate], key)?;
     tls.alpn_protocols = vec![ALPN.to_vec()];
-    tls.key_log = Arc::new(rustls::KeyLogFile::new());
+    #[cfg(debug_assertions)]
+    {
+        // for letting wireshark decrypt us in dev
+        tls.key_log = Arc::new(rustls::KeyLogFile::new());
+    }
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls)?));
     let mut transport = quinn::TransportConfig::default();
     transport.max_concurrent_bidi_streams(2_u8.into());
@@ -63,8 +67,12 @@ async fn serve(endpoint: Endpoint) -> Result<()> {
                                 }
                                 result = session::run(&connection) => {
                                     if let Err(error) = result {
-                                        eprintln!("Session rejected: {error}");
-                                        connection.close(1_u8.into(), error.to_string().as_bytes());
+                                        if let Some(reason) = connection.close_reason() {
+                                            println!("QUIC disconnected: {reason}");
+                                        } else {
+                                            eprintln!("Session rejected: {error}");
+                                            connection.close(1_u8.into(), error.to_string().as_bytes());
+                                        }
                                     }
                                 }
                             }

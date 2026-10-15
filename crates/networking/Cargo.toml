@@ -9,4 +9,5 @@ quic = ["dep:quinn"]
 [dependencies]
 anyhow = "1.0"
 prost = "0.14"
+protocol = { path = "../protocol" }
 quinn = { version = "0.11", default-features = false, optional = true }

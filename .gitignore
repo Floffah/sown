@@ -314,3 +314,4 @@ target/
 
 # Managed Sown state
 .sown/
+crates/**/README.md

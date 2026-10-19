@@ -7,6 +7,8 @@ package sown.protocol.v1;
 
 // -- COMMON TYPES --
 
+// util
+
 message Vector3 {
   float x = 1;
   float y = 2;
@@ -26,16 +28,43 @@ message Transform {
   Vector3 scale = 3;
 }
 
-// -- STREAM INDEPENDANT --
+// snapshots
+
+// PeerSnapshot is purely for networking and peer discovery, when a new peer joins whom represents a player, an EntitySnapshot is also received
+message PeerSnapshot {
+  uint32 peer_id = 1;
+
+  // temp
+  optional string username = 16;
+}
+
+message EntitySnapshot {
+  uint64 entity_id = 1;
+  uint32 owner_peer_id = 2;
+  Transform transform = 3;
+}
+
+// -- STREAM INDEPENDENT --
 
 enum StreamID {
   CONTROL = 0;
   EVENTS = 1;
 }
 
-message StreamHeader {
+message ClientStreamHeader {
   StreamID stream_id = 1;
 }
+
+message ServerPeersSnapshot {
+  uint64 server_tick = 1;
+  repeated PeerSnapshot snapshot = 2;
+}
+
+message ServerEntitiesSnapshot {
+  uint64 server_tick = 1;
+  repeated EntitySnapshot snapshot = 2;
+}
+
 
 // -- RELIABLE STREAM 1: CONTROL --
 
@@ -46,8 +75,12 @@ message ControlClientHello {
   optional string username = 16;
 }
 
+message ControlClientJoin {
+}
+
 message ControlServerWelcome {
   uint32 protocol_version = 1;
+  uint32 peer_id = 2;
 }
 
 message ControlServerError {
@@ -61,18 +94,36 @@ message ControlEnvelope {
     ControlClientHello client_hello = 1;
     ControlServerWelcome server_welcome = 2;
     ControlServerError server_error = 3;
+    ControlClientJoin client_join = 4;
   }
 }
 
 // -- RELIABLE STREAM 2: EVENTS --
 
-message EventPlaceholderMessage {
-  uint32 protocol_version = 1;
+message EventServerPeerAdmitted {
+  PeerSnapshot snapshot = 1;
+}
+
+message EventServerPeerRemoved {
+  uint32 peer_id = 1;
+}
+
+message EventServerEntityCreated {
+  EntitySnapshot snapshot = 1;
+}
+
+message EventServerEntityRemoved {
+  uint64 entity_id = 1;
 }
 
 message EventEnvelope {
   oneof payload {
-    EventPlaceholderMessage placeholder = 1;
+    EventServerPeerAdmitted peer_admitted = 1;
+    EventServerPeerRemoved peer_removed = 2;
+    EventServerEntityCreated entity_created = 3;
+    EventServerEntityRemoved entity_removed = 4;
+    ServerPeersSnapshot initial_peers_snapshot = 5;
+    ServerEntitiesSnapshot initial_entities_snapshot = 6;
   }
 }
 
@@ -85,5 +136,7 @@ message DatagramClientLocalPlayerMove {
 message DatagramEnvelope {
   oneof payload {
     DatagramClientLocalPlayerMove local_player_move = 1;
+    ServerPeersSnapshot peers_snapshot = 2;
+    ServerEntitiesSnapshot entities_snapshot = 3;
   }
 }

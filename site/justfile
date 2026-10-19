@@ -1,0 +1,11 @@
+dev:
+    bun dev
+
+build:
+    bun run build
+
+preview:
+    bun preview
+
+check:
+    bun check

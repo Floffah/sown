@@ -6,7 +6,7 @@ use networking::{
     quic::{read_message, write_message},
 };
 use protocol::v1::{
-    ControlEnvelope, ControlServerWelcome, EventEnvelope, StreamHeader, StreamId, control_envelope,
+    ControlEnvelope, ControlServerWelcome, EventEnvelope, ClientStreamHeader, StreamId, control_envelope,
 };
 use quinn::{Connection, RecvStream, SendStream};
 
@@ -50,7 +50,7 @@ pub(super) async fn run(connection: &Connection) -> Result<()> {
 }
 
 async fn read_header(recv: &mut RecvStream, expected: StreamId) -> Result<()> {
-    let header: StreamHeader = read_message(recv).await?;
+    let header: ClientStreamHeader = read_message(recv).await?;
     let channel = StreamId::try_from(header.stream_id).context("Unknown stream channel")?;
     ensure!(
         channel == expected,

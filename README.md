@@ -38,4 +38,4 @@ Sown's open formats and protocols also let developers build compatible clients, 
 
 ## Learn more
 
-Read the [project vision](docs/vision.md) for the principles behind Sown and a fuller picture of its universe.
+Read the [project vision](vision.md) for the principles behind Sown and a fuller picture of its universe. Also an [indev docs site](site/src/content/docs)

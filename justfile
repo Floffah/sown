@@ -1,7 +1,9 @@
+mod site
+
 default:
     @just --list
 
-build: generate-protocol
+build: generate-protocol site::build
     cargo build --workspace --release
 
 generate-protocol:

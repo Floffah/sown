@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail, ensure};
 use prost::Message;
-use protocol::v1::{ControlClientHello, ControlEnvelope, StreamHeader, StreamId, control_envelope};
+use protocol::v1::{ControlClientHello, ControlEnvelope, ClientStreamHeader, StreamId, control_envelope};
 use quinn::{Connection, RecvStream, SendStream};
 
 use crate::{PROTOCOL_VERSION, decode_body, decode_length, encode_message};
@@ -25,7 +25,7 @@ pub async fn join(connection: &Connection) -> Result<ClientStreams> {
     let (mut control_send, mut control_recv) = connection.open_bi().await?;
     write_message(
         &mut control_send,
-        &StreamHeader {
+        &ClientStreamHeader {
             stream_id: StreamId::Control as i32,
         },
     )
@@ -45,7 +45,7 @@ pub async fn join(connection: &Connection) -> Result<ClientStreams> {
     let (mut events_send, events_recv) = connection.open_bi().await?;
     write_message(
         &mut events_send,
-        &StreamHeader {
+        &ClientStreamHeader {
             stream_id: StreamId::Events as i32,
         },
     )

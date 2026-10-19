@@ -2,7 +2,7 @@ use super::*;
 use protocol::{
     Message,
     v1::{
-        ControlClientHello, ControlEnvelope, EventEnvelope, EventPlaceholderMessage, StreamHeader,
+        ControlClientHello, ControlEnvelope, EventEnvelope, EventPlaceholderMessage, ClientStreamHeader,
         StreamId, control_envelope, event_envelope,
     },
 };
@@ -104,7 +104,7 @@ async fn welcomes_client_and_reads_events_while_control_is_idle() -> Result<()> 
 async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
     tokio::time::timeout(Duration::from_secs(15), async {
         let server = TestServer::new()?;
-        let control = StreamHeader {
+        let control = ClientStreamHeader {
             stream_id: StreamId::Control as i32,
         }
         .encode_length_delimited_to_vec();
@@ -114,11 +114,11 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         wrong_payload.extend(ControlEnvelope { payload: None }.encode_length_delimited_to_vec());
         let cases = [
             (
-                StreamHeader { stream_id: 99 }.encode_length_delimited_to_vec(),
+                ClientStreamHeader { stream_id: 99 }.encode_length_delimited_to_vec(),
                 "Unknown stream channel",
             ),
             (
-                StreamHeader {
+                ClientStreamHeader {
                     stream_id: StreamId::Events as i32,
                 }
                 .encode_length_delimited_to_vec(),
@@ -147,7 +147,7 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         let (mut duplicate, _recv) = connection.open_bi().await?;
         networking::quic::write_message(
             &mut duplicate,
-            &StreamHeader {
+            &ClientStreamHeader {
                 stream_id: StreamId::Control as i32,
             },
         )

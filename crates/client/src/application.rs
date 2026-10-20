@@ -22,6 +22,8 @@ const MAX_FRAME_TIME: Duration = Duration::from_millis(100);
 pub struct State {
     window: Arc<Window>,
     renderer: renderer::Renderer,
+    overlay: crate::overlay::Overlay,
+    devtools_open: bool,
     ecs: engine::ecs::Ecs,
     movement_keys: MovementKeys,
     last_frame: Instant,
@@ -42,9 +44,12 @@ impl State {
         let local_player = engine::ecs::player::spawn_local_player(&mut ecs.world);
         let size = window.inner_size();
         let renderer = renderer::Renderer::new(window.clone(), size.width, size.height).await?;
+        let overlay = crate::overlay::Overlay::new(&window, &renderer);
         Ok(Self {
             window,
             renderer,
+            overlay,
+            devtools_open: false,
             ecs,
             movement_keys: MovementKeys::default(),
             last_frame: Instant::now(),
@@ -76,6 +81,9 @@ impl State {
     }
 
     fn update(&mut self) {
+        if self.devtools_open && self.overlay.wants_keyboard_input() {
+            self.movement_keys.clear();
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut disconnected = false;
@@ -109,6 +117,12 @@ impl State {
         self.last_frame = now;
         self.ecs.world.insert_resource(self.movement_keys.intent());
         self.ecs.tick(elapsed);
+    }
+
+    fn render(&mut self) -> anyhow::Result<renderer::RenderOutcome> {
+        self.overlay.prepare(&self.window, self.devtools_open);
+        self.renderer
+            .render(&mut self.ecs.world, |frame| self.overlay.paint(frame))
     }
 }
 
@@ -222,6 +236,7 @@ impl ApplicationHandler<State> for App {
         event: WindowEvent,
     ) {
         let Some(state) = &mut self.state else { return };
+        let ui_consumed = state.overlay.on_window_event(&state.window, &event);
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -237,13 +252,24 @@ impl ApplicationHandler<State> for App {
                     KeyEvent {
                         physical_key: PhysicalKey::Code(code),
                         state: key_state,
+                        repeat,
                         ..
                     },
                 ..
-            } => state.handle_key(event_loop, code, key_state.is_pressed()),
+            } => {
+                if code == KeyCode::F12 {
+                    if key_state.is_pressed() && !repeat {
+                        state.devtools_open = !state.devtools_open;
+                        state.reset_input();
+                        state.window.request_redraw();
+                    }
+                } else if !state.devtools_open || !ui_consumed || !key_state.is_pressed() {
+                    state.handle_key(event_loop, code, key_state.is_pressed());
+                }
+            }
             WindowEvent::RedrawRequested => {
                 state.update();
-                match state.renderer.render(&mut state.ecs.world) {
+                match state.render() {
                     Ok(renderer::RenderOutcome::Presented | renderer::RenderOutcome::Retry) => {
                         state.window.request_redraw();
                     }

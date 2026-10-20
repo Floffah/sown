@@ -13,6 +13,8 @@ use extraction::{extract_camera, extract_meshes};
 use pipeline::create_pipeline;
 use primitives::create_cube_mesh;
 
+pub use wgpu;
+
 mod extraction;
 mod pipeline;
 mod primitives;
@@ -147,7 +149,17 @@ impl Renderer {
         }
     }
 
-    /// Renders the ECS scene. The host schedules another redraw for `Retry`.
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    pub fn surface_format(&self) -> wgpu::TextureFormat {
+        self.config.format
+    }
+
+    /// Renders the ECS scene, then calls the host's overlay before presentation.
+    /// The overlay returns any command buffers that must run before this frame.
+    /// The host schedules another redraw for `Retry`.
     ///
     /// # Panics
     /// Panics if a configured surface has no depth buffer, violating an internal invariant.
@@ -155,7 +167,11 @@ impl Renderer {
     /// # Errors
     /// Returns an error for invalid camera data, surface validation or loss,
     /// or an instance count that cannot be represented by the GPU draw command.
-    pub fn render(&mut self, world: &mut World) -> anyhow::Result<RenderOutcome> {
+    pub fn render(
+        &mut self,
+        world: &mut World,
+        overlay: impl FnOnce(RenderFrame<'_>) -> Vec<wgpu::CommandBuffer>,
+    ) -> anyhow::Result<RenderOutcome> {
         // We can't render unless the surface is configured
         if !self.is_surface_configured {
             return Ok(RenderOutcome::Skipped);
@@ -212,12 +228,28 @@ impl Renderer {
             &batches,
         );
 
-        // submit will accept anything that implements IntoIter
-        self.queue.submit(std::iter::once(encoder.finish()));
+        let overlay_commands = overlay(RenderFrame {
+            device: &self.device,
+            queue: &self.queue,
+            encoder: &mut encoder,
+            color: &view,
+            size_in_pixels: [self.config.width, self.config.height],
+        });
+        self.queue
+            .submit(overlay_commands.into_iter().chain([encoder.finish()]));
         self.queue.present(output);
 
         Ok(RenderOutcome::Presented)
     }
+}
+
+/// GPU resources for drawing an overlay onto the scene's current frame.
+pub struct RenderFrame<'a> {
+    pub device: &'a wgpu::Device,
+    pub queue: &'a wgpu::Queue,
+    pub encoder: &'a mut wgpu::CommandEncoder,
+    pub color: &'a wgpu::TextureView,
+    pub size_in_pixels: [u32; 2],
 }
 
 /// Tells the host whether a frame was drawn or another redraw is needed.

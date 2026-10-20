@@ -10,6 +10,10 @@ crate-type = ["cdylib", "rlib"]
 project = { path = "../project" }
 engine = { path = "../engine" }
 renderer = { path = "../renderer" }
+devtools = { path = "../devtools" }
+egui = "0.37"
+egui-winit = { version = "0.37", default-features = false }
+egui-wgpu = { version = "0.37", default-features = false }
 anyhow = "1.0"
 winit = { version = "0.30", features = ["android-native-activity"] }
 env_logger = "0.11"

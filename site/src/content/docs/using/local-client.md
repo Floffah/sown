@@ -20,15 +20,16 @@ The client opens the Minimal Room scene and connects to `127.0.0.1:50420`. It re
 
 ## Controls
 
-| Key | Movement |
+| Key | Action |
 | --- | --- |
 | W | Negative Z |
 | S | Positive Z |
 | A | Negative X |
 | D | Positive X |
 | Escape | Exit |
+| F12 | Toggle developer tools |
 
-Movement follows world axes at 3 world units per second. Opposing keys cancel, and diagonal movement has the same maximum speed as movement on one axis. Losing focus, hiding, or suspending the window clears held input.
+Movement follows world axes at 3 world units per second. Opposing keys cancel, and diagonal movement has the same maximum speed as movement on one axis. Losing focus, hiding, or suspending the window clears held input. Toggling developer tools also clears held movement keys; press them again to resume movement.
 
 The camera starts at `(3, 3, 5)` looking toward the origin. When you move, its position changes.
 

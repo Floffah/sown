@@ -8,6 +8,14 @@ Sown worlds are source projects. When you enter a world, the client retrieves it
 
 Use developer tools to inspect scene hierarchies, object properties, source files, assets, network activity, permissions, and performance information. You can examine how the world is assembled and how it behaves, but local experiments have no authority over the server's simulation.
 
+## Open developer tools
+
+Press **F12** in the local client to show or hide the dark developer-tools panel
+on the right side of the game view. The panel overlays the scene, which continues
+rendering underneath it. Drag its left edge to adjust the width. Select **Network**
+or **ECS** in the tab bar; the selected tab stays selected when you hide and
+reopen the panel.
+
 ## Source and reuse
 
 You can inspect a project's source, but its licence determines whether you can copy, modify, or redistribute its code and assets. Check the licence before reusing them.

@@ -2,10 +2,21 @@
 title: Overview
 ---
 
-The Sown Protocol defines a set of interoperable mechanisms for discovering, loading, and participating in independently hosted interactive virtual worlds. The protocol is designed to support multiple client and server implementations, including native applications and web browsers.
+Sown is an open-source platform for creating, hosting, and exploring interconnected virtual worlds. Worlds can be games, social spaces, classrooms, art installations, or personal homes. Their creators control their appearance, behaviour, and rules.
 
-Sown is intended to be fully decentralised. No one entity should have control over the network. The standard is fully open source and can easily be forked or reimplemented by an outside disagreeable entities.
+Use the client to visit these worlds, much like you use a browser to visit websites. World servers run independently. With shared formats, different clients and servers can connect to the same worlds.
 
-The protocol is split into three distinct categories: world, wire, and identity. [World](/worlds) represents the physical project format and scripting runtime employed by both the client and server to conduct simulation. [Wire](/wire) represents the wire communication between clients and world servers. [Identity](/identity) describes the large network of decentralised identity resolving and network security.
+| Common Objective | Page |
+| --- | --- |
+| Visit worlds and manage your personal space | [Using Sown](/using/) |
+| Define a world and share its source | [Creating worlds](/worlds/) |
+| Start and operate a local server | [Hosting](/hosting/) |
+| Embed Sown's world engine or renderer | [Building with Sown](/building/) |
+| Write a compatible client or server | [Wire protocol](/wire/) |
+| Understand identities and personal data | [Identity](/identity/) |
 
-The protocol does not require a particular implementation or set of technologies, but the behaviour of implementations must match the standard in order to achieve interoperability.
+## Independent ownership
+
+World hosting requires no approval from Sown's maintainers or registration with an official directory. Creators choose their Git host, players choose their identity provider, and communities operate their own worlds and hubs.
+
+Open formats and protocols let developers build independent implementations. To be compatible, implementations need to exchange the same data and follow the same protocol behaviour. They can use different programming languages and internal structures.

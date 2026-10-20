@@ -15,9 +15,15 @@ npm run dev
 
 The development server runs at `http://localhost:4321`.
 
-`src/content/docs` is a symlink to the repository's `../records` directory. Edit
-documentation there; new Markdown pages need a `title` in YAML frontmatter and
-appear automatically in the sidebar. Starlight supplies each page's main heading.
+Edit the manual in `src/content/docs`. Keep each page focused on one task or
+reference topic, with a `title` in YAML frontmatter. Pages within each section
+appear automatically in the sidebar; use `sidebar.order` to set their order.
+Starlight supplies each page's main heading.
+
+Write for players, world creators, server operators, and developers using Sown.
+Describe concrete behaviour in present tense. Keep implementation history,
+roadmaps, and unresolved design alternatives out of the manual. The repository's
+`records` directory contains reference notes, separate from the published pages.
 
 ```sh
 npm run check
@@ -25,5 +31,4 @@ npm run build
 npm run preview
 ```
 
-The static site is generated in `dist/`. Build from the repository checkout so
-the linked `../records` directory is available.
+The static site is generated in `dist/`.

@@ -12,7 +12,10 @@ export default defineConfig({
       customCss: ['./src/styles/global.css'],
       sidebar: [
         {label: "Overview", slug: "overview"},
+        { label: "Using Sown", items: [{ autogenerate: { directory: 'using' } }] },
         { label: "Worlds", items: [{ autogenerate: { directory: 'worlds' } }] },
+        { label: "Hosting", items: [{ autogenerate: { directory: 'hosting' } }] },
+        { label: "Building with Sown", items: [{ autogenerate: { directory: 'building' } }] },
         { label: "Wire", items: [{ autogenerate: { directory: 'wire' } }] },
         { label: "Identity", items: [{ autogenerate: { directory: 'identity' } }] },
       ],

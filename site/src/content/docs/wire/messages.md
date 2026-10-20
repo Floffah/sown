@@ -28,7 +28,7 @@ waits for the Join request and Events stream setup before admitting the peer.
 After admission, `ControlServerJoined` identifies the client's player entity.
 The client matches this ID against `entity_id` in snapshots and lifecycle events;
 `owner_peer_id` alone does not identify which owned entity is its player.
-The [session phases](/wire/session/) define the order of these exchanges.
+The [session phases](../session/) define the order of these exchanges.
 
 ## Events schema
 

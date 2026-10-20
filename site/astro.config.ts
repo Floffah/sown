@@ -5,6 +5,8 @@ import starlightCatppuccin from '@catppuccin/starlight'
 import starlightGitHubAlerts from 'starlight-github-alerts'
 
 export default defineConfig({
+  site: 'https://floffah.github.io',
+  base: '/sown',
   integrations: [
     starlight({
       title: 'Sown',

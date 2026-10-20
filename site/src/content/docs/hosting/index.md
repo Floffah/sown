@@ -8,8 +8,8 @@ World servers run authoritative simulations and accept player connections. As an
 
 For the reference server:
 
-- [Local server](/hosting/local-server/) covers startup, the listening address, and shutdown.
-- [Certificates and state](/hosting/state/) explains working-directory storage and TLS trust.
-- [Troubleshooting](/hosting/troubleshooting/) covers connection and protocol failures.
+- [Local server](local-server/) covers startup, the listening address, and shutdown.
+- [Certificates and state](state/) explains working-directory storage and TLS trust.
+- [Troubleshooting](troubleshooting/) covers connection and protocol failures.
 
 The server is headless: it does not require a game window or renderer. The client presents the world and handles input.

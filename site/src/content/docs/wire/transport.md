@@ -17,7 +17,7 @@ Control and Events are logical channels identified by `ClientStreamHeader`. Thei
 | Control | `0` | Connection and session management |
 | Events | `1` | Reliable world and gameplay messages |
 
-Streams preserve order within a channel. Independent channels let Events processing continue while Control is idle. Reliable messages use [length-prefixed framing](/wire/framing/).
+Streams preserve order within a channel. Independent channels let Events processing continue while Control is idle. Reliable messages use [length-prefixed framing](../framing/).
 
 ## Datagrams
 

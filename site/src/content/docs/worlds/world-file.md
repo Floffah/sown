@@ -34,7 +34,7 @@ A world file is a JSON object with `formatVersion`, `name`, and one `root` node:
 | --- | --- |
 | `formatVersion` | Unsigned 32-bit integer identifying the format version |
 | `name` | World name as a string |
-| `root` | A [node object](/worlds/nodes/) containing the hierarchy |
+| `root` | A [node object](../nodes/) containing the hierarchy |
 
 The parser checks required fields, field types, unknown fields, node types, mesh primitives, and mesh requirements throughout the tree. Unknown fields cause an error. Choose distinct node IDs for references within your world.
 

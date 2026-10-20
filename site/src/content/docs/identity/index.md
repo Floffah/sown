@@ -14,6 +14,6 @@ Your Sown identity belongs to you, independently of any world, client, hosting p
 
 You can replace providers and resolution services. Hosting identity records does not give them ownership of the identity.
 
-- [Identifiers and authority](/identity/authority/) explains persistent identity and signed records.
-- [Personal Data Stores](/identity/personal-data/) covers provider choice and migration.
-- [Verification and privacy](/identity/verification/) explains credential checks and trust boundaries.
+- [Identifiers and authority](authority/) explains persistent identity and signed records.
+- [Personal Data Stores](personal-data/) covers provider choice and migration.
+- [Verification and privacy](verification/) explains credential checks and trust boundaries.

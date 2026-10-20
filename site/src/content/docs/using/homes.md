@@ -19,4 +19,4 @@ Local and hosted worlds use the same world representation. Your home can contain
 
 You keep your identity when you travel between worlds. World servers control gameplay progress, and their operators set the rules for accepting portable information such as avatars. Personal Data Stores have no authority over a world's inventory, currency, or achievements.
 
-See [Personal Data Stores](/identity/personal-data/) for provider choice and data portability.
+See [Personal Data Stores](../../identity/personal-data/) for provider choice and data portability.

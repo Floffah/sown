@@ -20,7 +20,7 @@ If the address is already in use, stop the process occupying it before starting 
 
 The application handshake has a 10-second deadline. A compatible client sends the Control stream header, sends Hello with version `1`, validates Welcome, and opens Events with its header.
 
-Malformed framing, oversized messages, unsupported versions, invalid channel headers, duplicate Control streams, and unexpected Control messages cause rejection. Check the terminal reason against [Session establishment](/wire/session/) and [Message framing](/wire/framing/).
+Malformed framing, oversized messages, unsupported versions, invalid channel headers, duplicate Control streams, and unexpected Control messages cause rejection. Check the terminal reason against [Session establishment](../../wire/session/) and [Message framing](../../wire/framing/).
 
 ## Game window stays open after a failure
 

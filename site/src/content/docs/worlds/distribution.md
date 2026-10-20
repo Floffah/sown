@@ -20,4 +20,4 @@ Repository visibility does not make its contents safe to execute with host privi
 
 Do not commit passwords, private keys, deployment credentials, or private player data to distributed source. An advertised repository also does not attest to the code running on the server.
 
-See [Discovery](/wire/discovery/) for the metadata identifying a world's repository and revision.
+See [Discovery](../../wire/discovery/) for the metadata identifying a world's repository and revision.

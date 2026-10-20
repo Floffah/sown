@@ -41,6 +41,6 @@ src/
 
 `main` is the world's project key. `source` is its project-relative world file, and `default` identifies the default entry.
 
-World files contain scene trees. The example `marker.scene` also contains a `formatVersion`, `name`, and `root` node. Scripts are grouped into shared, client, and server directories; [behaviour references](/worlds/behaviours/) show the corresponding source URIs.
+World files contain scene trees. The example `marker.scene` also contains a `formatVersion`, `name`, and `root` node. Scripts are grouped into shared, client, and server directories; [behaviour references](../behaviours/) show the corresponding source URIs.
 
 Keep private server credentials outside source distributed to clients. Store generated cross-run server state under `.sown` in the process working directory.

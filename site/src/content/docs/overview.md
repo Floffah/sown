@@ -8,12 +8,12 @@ Use the client to visit these worlds, much like you use a browser to visit websi
 
 | Common Objective | Page |
 | --- | --- |
-| Visit worlds and manage your personal space | [Using Sown](/using/) |
-| Define a world and share its source | [Creating worlds](/worlds/) |
-| Start and operate a local server | [Hosting](/hosting/) |
-| Embed Sown's world engine or renderer | [Building with Sown](/building/) |
-| Write a compatible client or server | [Wire protocol](/wire/) |
-| Understand identities and personal data | [Identity](/identity/) |
+| Visit worlds and manage your personal space | [Using Sown](../using/) |
+| Define a world and share its source | [Creating worlds](../worlds/) |
+| Start and operate a local server | [Hosting](../hosting/) |
+| Embed Sown's world engine or renderer | [Building with Sown](../building/) |
+| Write a compatible client or server | [Wire protocol](../wire/) |
+| Understand identities and personal data | [Identity](../identity/) |
 
 ## Independent ownership
 

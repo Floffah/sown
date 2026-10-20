@@ -32,4 +32,4 @@ Movement follows world axes at 3 world units per second. Opposing keys cancel, a
 
 The camera starts at `(3, 3, 5)` looking toward the origin. When you move, its position changes.
 
-For startup errors, see [Connection troubleshooting](/hosting/troubleshooting/).
+For startup errors, see [Connection troubleshooting](../../hosting/troubleshooting/).

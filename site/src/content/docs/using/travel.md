@@ -18,4 +18,4 @@ A portal will send you to another world address. The destination can belong to a
 
 The client obtains the destination's world information and source, establishes a connection, and authenticates where required. You keep your persistent identity across worlds. Each operator sets the rules for accepting avatars, items, and other portable data.
 
-A world address identifies a destination. The [discovery service](/wire/discovery/) supplies its repository revision and session endpoints.
+A world address identifies a destination. The [discovery service](../../wire/discovery/) supplies its repository revision and session endpoints.

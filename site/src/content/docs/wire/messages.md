@@ -20,9 +20,15 @@ Peers are network participants; entities are world objects. Peer snapshots descr
 
 ## Control schema
 
-`ControlEnvelope` defines `client_hello`, `server_welcome`, `server_error`, and `client_join` payloads. Hello carries the protocol version and optional username; Welcome carries protocol version and peer ID. `ControlClientJoin` has an empty body. `ControlServerError` carries a message string in field `2`; field `1` and the name `error_id` are reserved.
+`ControlEnvelope` defines `client_hello`, `server_welcome`, `server_error`, `client_join`, and `server_joined` payloads. Hello carries the protocol version and optional username; Welcome carries protocol version and peer ID. `ControlClientJoin` has an empty body. `ControlServerJoined` carries the spawned player's `uint64 player_entity_id` in field `1`; its envelope payload uses field `5`. `ControlServerError` carries a message string in field `2`; field `1` and the name `error_id` are reserved.
 
-Check which Control messages the [reference session receiver](/wire/session/) accepts at each step. A message's presence in the schema does not make it valid at every stage of a connection.
+Hello and Welcome belong to Handshake. After receiving Welcome and preparing
+the local world, the client sends `ControlClientJoin` to start Join. The server
+waits for the Join request and Events stream setup before admitting the peer.
+After admission, `ControlServerJoined` identifies the client's player entity.
+The client matches this ID against `entity_id` in snapshots and lifecycle events;
+`owner_peer_id` alone does not identify which owned entity is its player.
+The [session phases](/wire/session/) define the order of these exchanges.
 
 ## Events schema
 

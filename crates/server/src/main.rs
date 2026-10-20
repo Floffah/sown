@@ -1,4 +1,9 @@
-use std::{net::SocketAddr, path::Path, sync::Arc};
+use std::{
+    net::SocketAddr,
+    path::Path,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use engine::ecs::Ecs;
@@ -8,6 +13,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 mod session;
 mod tls;
+mod world;
 
 const WORLD: &str = include_str!("../../../fixtures/minimal-room/worlds/main.world");
 const LISTEN_ADDRESS: &str = "127.0.0.1:50420";
@@ -15,7 +21,7 @@ const LISTEN_ADDRESS: &str = "127.0.0.1:50420";
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let source = project::world::parse(WORLD).context("Failed to parse the embedded world")?;
-    let _ecs = Ecs::from_source(&source)
+    let ecs = Ecs::from_source(&source)
         .map_err(anyhow::Error::msg)
         .context("Failed to build the server ECS")?;
     println!("Loaded world: {}", source.name);
@@ -23,7 +29,7 @@ async fn main() -> Result<()> {
     let (certificate, key) = tls::load_or_generate(Path::new(".sown"))?;
     let endpoint = create_endpoint(LISTEN_ADDRESS.parse()?, certificate, key)?;
     println!("QUIC listening on {}", endpoint.local_addr()?);
-    serve(endpoint).await
+    serve(endpoint, Arc::new(Mutex::new(world::World::new(ecs)))).await
 }
 
 fn create_endpoint(
@@ -48,15 +54,24 @@ fn create_endpoint(
     Endpoint::server(config, address).context("Failed to bind the QUIC endpoint")
 }
 
-async fn serve(endpoint: Endpoint) -> Result<()> {
+async fn serve(endpoint: Endpoint, world: Arc<Mutex<world::World>>) -> Result<()> {
+    let frame_time = Duration::from_secs_f64(1.0 / 60.0);
+    let mut ticks = tokio::time::interval(frame_time);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         tokio::select! {
             result = tokio::signal::ctrl_c() => {
                 result.context("Failed to listen for Ctrl-C")?;
                 break;
             }
+            _ = ticks.tick() => {
+                let mut world = world.lock().unwrap();
+                world.ecs.tick(frame_time);
+                world.tick += 1;
+            }
             incoming = endpoint.accept() => {
                 let Some(incoming) = incoming else { break };
+                let world = world.clone();
                 tokio::spawn(async move {
                     match incoming.await {
                         Ok(connection) => {
@@ -65,7 +80,7 @@ async fn serve(endpoint: Endpoint) -> Result<()> {
                                 reason = connection.closed() => {
                                     println!("QUIC disconnected: {reason}");
                                 }
-                                result = session::run(&connection) => {
+                                result = session::run(&connection, &world) => {
                                     if let Err(error) = result {
                                         if let Some(reason) = connection.close_reason() {
                                             println!("QUIC disconnected: {reason}");

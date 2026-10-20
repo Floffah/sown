@@ -45,6 +45,13 @@ pub(super) fn move_local_player(
 
 /// Spawns the local player with its camera at (3, 3, 5), looking at the origin.
 pub fn spawn_local_player(world: &mut World) -> Entity {
+    let entity = spawn_player(world);
+    world.entity_mut(entity).insert(LocalPlayer);
+    entity
+}
+
+/// Spawns a player with its camera at (3, 3, 5), looking at the origin.
+pub fn spawn_player(world: &mut World) -> Entity {
     let yaw = 3.0_f32.atan2(5.0);
     let pitch = -3.0_f32.atan2(34.0_f32.sqrt());
     let (sin_yaw, cos_yaw) = (yaw / 2.0).sin_cos();
@@ -52,7 +59,6 @@ pub fn spawn_local_player(world: &mut World) -> Entity {
     world
         .spawn((
             Player,
-            LocalPlayer,
             Transform {
                 translation: [3.0, 3.0, 5.0],
                 // Compose yaw about Y followed by pitch about the camera's local X.

@@ -5,6 +5,7 @@ use prost::Message;
 
 #[cfg(feature = "quic")]
 pub mod quic;
+pub mod session;
 
 pub const ALPN: &[u8] = b"sown/1";
 pub const PROTOCOL_VERSION: u32 = 1;

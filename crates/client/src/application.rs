@@ -25,6 +25,10 @@ pub struct State {
     ecs: engine::ecs::Ecs,
     movement_keys: MovementKeys,
     last_frame: Instant,
+    #[cfg(not(target_arch = "wasm32"))]
+    network_updates: Option<std::sync::mpsc::Receiver<crate::replication::Update>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    replication: crate::replication::Replication,
 }
 
 impl State {
@@ -34,7 +38,8 @@ impl State {
             "../../../fixtures/minimal-room/worlds/main.world"
         ))?;
         let mut ecs = engine::ecs::Ecs::from_source(&source).map_err(anyhow::Error::msg)?;
-        engine::ecs::player::spawn_local_player(&mut ecs.world);
+        #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
+        let local_player = engine::ecs::player::spawn_local_player(&mut ecs.world);
         let size = window.inner_size();
         let renderer = renderer::Renderer::new(window.clone(), size.width, size.height).await?;
         Ok(Self {
@@ -43,6 +48,10 @@ impl State {
             ecs,
             movement_keys: MovementKeys::default(),
             last_frame: Instant::now(),
+            #[cfg(not(target_arch = "wasm32"))]
+            network_updates: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            replication: crate::replication::Replication::new(local_player),
         })
     }
 
@@ -67,6 +76,34 @@ impl State {
     }
 
     fn update(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut disconnected = false;
+            if let Some(updates) = &self.network_updates {
+                loop {
+                    match updates.try_recv() {
+                        Ok(update) => {
+                            if let Err(error) = self.replication.apply(&mut self.ecs.world, update)
+                            {
+                                eprintln!("Invalid server state: {error:#}");
+                                self.replication.reject(&mut self.ecs.world);
+                                disconnected = true;
+                                break;
+                            }
+                        }
+                        Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                            disconnected = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if disconnected {
+                self.network_updates = None;
+                self.replication.clear(&mut self.ecs.world);
+            }
+        }
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_frame).min(MAX_FRAME_TIME);
         self.last_frame = now;
@@ -80,6 +117,10 @@ pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
+    #[cfg(not(target_arch = "wasm32"))]
+    network_updates: Option<std::sync::mpsc::Receiver<crate::replication::Update>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    world_ready: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl App {
@@ -89,6 +130,10 @@ impl App {
         let proxy = Some(event_loop.create_proxy());
         Self {
             state: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            network_updates: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            world_ready: None,
             #[cfg(target_arch = "wasm32")]
             proxy,
         }
@@ -160,6 +205,13 @@ impl ApplicationHandler<State> for App {
         // This is where proxy.send_event() ends up
         let size = event.window.inner_size();
         event.resize(size.width, size.height);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            event.network_updates = self.network_updates.take();
+            if let Some(ready) = self.world_ready.take() {
+                let _ = ready.send(());
+            }
+        }
         self.state = Some(event);
     }
 
@@ -232,12 +284,16 @@ pub fn run() -> anyhow::Result<()> {
             .worker_threads(1)
             .enable_all()
             .build()?;
-        let network_task = network_runtime.spawn(async {
-            if let Err(error) = crate::connection::run().await {
+        let (updates, receiver) = std::sync::mpsc::sync_channel(64);
+        let (ready, world_ready) = tokio::sync::oneshot::channel();
+        let network_task = network_runtime.spawn(async move {
+            if let Err(error) = crate::connection::run(updates, world_ready).await {
                 eprintln!("QUIC connection failed: {error:#}");
             }
         });
         let mut app = App::new();
+        app.network_updates = Some(receiver);
+        app.world_ready = Some(ready);
         let result = event_loop.run_app(&mut app);
         network_task.abort();
         result?;

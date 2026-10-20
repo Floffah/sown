@@ -106,6 +106,12 @@ pub struct ControlServerWelcome {
     pub peer_id: u32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct ControlServerJoined {
+    #[prost(uint64, tag = "1")]
+    pub player_entity_id: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ControlServerError {
     #[prost(string, tag = "2")]
@@ -114,7 +120,7 @@ pub struct ControlServerError {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ControlEnvelope {
-    #[prost(oneof = "control_envelope::Payload", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "control_envelope::Payload", tags = "1, 2, 3, 4, 5")]
     pub payload: ::core::option::Option<control_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlEnvelope`.
@@ -130,6 +136,8 @@ pub mod control_envelope {
         ServerError(super::ControlServerError),
         #[prost(message, tag = "4")]
         ClientJoin(super::ControlClientJoin),
+        #[prost(message, tag = "5")]
+        ServerJoined(super::ControlServerJoined),
     }
 }
 // -- RELIABLE STREAM 2: EVENTS --

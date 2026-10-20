@@ -1,37 +1,80 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, mpsc::SyncSender},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
-use networking::ALPN;
+use networking::{
+    ALPN,
+    quic::{handshake, join, read_message},
+};
+use protocol::v1::ControlEnvelope;
 use quinn::{Connection, Endpoint, crypto::rustls::QuicClientConfig, rustls};
 use rustls::pki_types::{CertificateDer, pem::PemObject};
+
+use crate::replication::Update;
 
 const SERVER_ADDRESS: &str = "127.0.0.1:50420";
 const CERTIFICATE_PATH: &str = ".sown/server-tls.pem";
 
-pub(super) async fn run() -> Result<()> {
+pub(super) async fn run(
+    updates: SyncSender<Update>,
+    world_ready: tokio::sync::oneshot::Receiver<()>,
+) -> Result<()> {
     let certificate = CertificateDer::from_pem_file(CERTIFICATE_PATH).with_context(|| {
         format!("Failed to load {CERTIFICATE_PATH}: run the server from the same working directory first")
     })?;
     println!("QUIC connecting to {SERVER_ADDRESS}");
     let (endpoint, connection) = connect(SERVER_ADDRESS.parse()?, certificate).await?;
     println!("QUIC connected to {}", connection.remote_address());
-    let result = tokio::time::timeout(Duration::from_secs(10), networking::quic::join(&connection))
-        .await
-        .context("Application handshake timed out")
-        .and_then(|result| result);
-    let _streams = match result {
-        Ok(streams) => streams,
-        Err(error) => {
-            connection.close(1_u8.into(), b"Client handshake failed");
-            endpoint.wait_idle().await;
-            return Err(error);
-        }
-    };
-    println!("Joined server");
-    let reason = connection.closed().await;
-    println!("QUIC disconnected: {reason}");
+    let result = run_session(&connection, &updates, world_ready).await;
+    if result.is_err() {
+        connection.close(1_u8.into(), b"Client session failed");
+    }
+    drop(updates);
     endpoint.wait_idle().await;
+    result
+}
+
+async fn run_session(
+    connection: &Connection,
+    updates: &SyncSender<Update>,
+    world_ready: tokio::sync::oneshot::Receiver<()>,
+) -> Result<()> {
+    let mut streams = tokio::time::timeout(Duration::from_secs(10), handshake(connection))
+        .await
+        .context("Application handshake timed out")??;
+    println!("Handshake complete: peer {}", streams.peer_id);
+
+    world_ready
+        .await
+        .context("Client closed before its world was ready")?;
+
+    let world = tokio::time::timeout(Duration::from_secs(10), join(&mut streams))
+        .await
+        .context("World join timed out")??;
+    updates.try_send(Update::Joined {
+        world,
+        connection: connection.clone(),
+    })?;
+
+    tokio::select! {
+        reason = connection.closed() => println!("QUIC disconnected: {reason}"),
+        response = read_message::<ControlEnvelope>(&mut streams.control_recv) => {
+            let _ = response?;
+            anyhow::bail!("Unexpected Control message during Play");
+        }
+        result = receive_events(&mut streams.events_recv, updates) => result?,
+    }
     Ok(())
+}
+
+async fn receive_events(recv: &mut quinn::RecvStream, updates: &SyncSender<Update>) -> Result<()> {
+    loop {
+        let event = read_message(recv).await?;
+        updates.try_send(Update::Event(event))?;
+    }
 }
 
 async fn connect(

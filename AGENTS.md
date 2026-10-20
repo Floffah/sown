@@ -31,14 +31,19 @@ The docs you must update are primarily code comments (based on the above rules) 
 When updating documentation you MUST follow the following rules:
 - The documentation should not explain the protocol in such a detail that the user does not care about, BUT should explain the protocol where it makes sense for contextual reasons. Assume readers dont understand the inner workings of sown, and frankly dont care about understanding it. THe only exception to this is the Wire and Identity documentation sections, which are only in the site while there is no true pdf manual. Sections like world are a good example of what should be there, because developers using sown (but not working on sown) must understand the world format. Same as system admins must understand how to run a server. Etc
 - IMPORTANT! - the documentation MUST be detailed, contextual, and DEFINITIVE. Abstract or conceptual documentation will be rejected. Documentation should follow an information structure and include continuity where possible. Largely it should be logically coherent
-- Documentation should follow the grammar and sentence structure rules defined below. You should also write documentation in conjunction with ANY humanisation skills or otherwise language writing skills that the user has installed locally or globally
+- Documentation should follow the grammar and sentence structure rules defined below. You should also write documentation in conjunction with ANY humanisation skills or other language writing skills that the user has installed locally or globally (e.g. humanizer, avoid-ai-writing, etc)
 - At this current prototype stage the documentation is intentionally not framed as "this is what it does now, here's what it will do in the future". The entire project proposal is taken as if it already exists and works, hence why far more systems are documented in far more detail than exists today. Bring this forward. If you are instructed to document something which includes writing about systems that don't exist, pretend they exist and ask the user for clarification where necessary.
 
 When making updates to Sown, the order of design precedence is as follows:
-- What the user explicitly tells you (but if other documentation sources conflict, challenge the user immediately and make no changes)
-- Ignored or personal developer documentation files (such as in `records/`)
-- The documentation site in `site/content/docs`
-- `/vision.md`
+1. What the user explicitly tells you (but if other documentation sources conflict, challenge the user immediately and make no changes)
+2. Ignored or personal developer documentation files (such as in `records/`)
+3. docs in `protocol/`
+4. The documentation site in `site/content/docs`
+5. `/vision.md`
+
+Importantly, as it stands: the wire and identity sections of the docs site are completely provisional and draft, conflicts here do not matter as much and shouldn't require you to stop. You must still stop for all other documentation sections and sources.
+
+If the changes you are making agree with documentation (such as the protocol) higher in priority in the precedence list above but disagrees with later documentation, don't consider this a conflict but rather notify the user that the later documentation needs updating.
 
 ## Rust file organization
 

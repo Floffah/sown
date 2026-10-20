@@ -83,6 +83,10 @@ message ControlServerWelcome {
   uint32 peer_id = 2;
 }
 
+message ControlServerJoined {
+  uint64 player_entity_id = 1;
+}
+
 message ControlServerError {
   reserved 1;
   reserved "error_id";
@@ -95,6 +99,7 @@ message ControlEnvelope {
     ControlServerWelcome server_welcome = 2;
     ControlServerError server_error = 3;
     ControlClientJoin client_join = 4;
+    ControlServerJoined server_joined = 5;
   }
 }
 

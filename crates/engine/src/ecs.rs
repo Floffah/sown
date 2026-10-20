@@ -5,6 +5,7 @@ use bevy_ecs::prelude::{Resource, Schedule, World};
 use std::time::Duration;
 
 pub mod player;
+pub mod replication;
 pub mod scene;
 mod source;
 

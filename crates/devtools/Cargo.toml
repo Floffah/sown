@@ -5,6 +5,7 @@ version.workspace = true
 
 [dependencies]
 egui = { version = "0.37", features = ["default_fonts"] }
+engine = { path = "../engine" }
 networking = { path = "../networking" }
 serde_json = "1.0"
 

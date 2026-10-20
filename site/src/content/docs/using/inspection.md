@@ -42,6 +42,31 @@ reports captures lost when the capture queue fills. Capturing does not block
 networking or interrupt gameplay when the queue is full. History is kept in
 memory for the current client run.
 
+## Inspect entities
+
+Select **ECS** to browse the entities in your client's world. The upper pane
+lists authored nodes by name, players as **Local player** or **Player**, and
+unnamed entities as **Entity**. Each row includes its local ECS ID. Search by
+name, local ECS ID, source node ID, or network entity ID to narrow the list.
+
+Click an entity to see its components in the lower pane. Expand or collapse
+individual sections to examine node identity, world and local transforms, mesh
+primitives, material colours, camera settings, replication identity, peer
+ownership, and player markers. Positions and scales use XYZ order; rotations
+use quaternion XYZW order. Camera field of view is displayed in degrees.
+Values are read-only, selectable, and update while the world runs.
+
+The **Replicated** section identifies entities by their server-assigned network
+ID. This is separate from the local ECS ID shown in the list. **PeerOwner**
+shows the associated peer; the server remains authoritative over the entity.
+The inspector shows the client's current state, including locally simulated
+movement.
+
+Drag the horizontal divider to resize the panes. Your search and selection
+remain when you switch tabs or hide the tools. New entities appear as they are
+created, and the selection clears when the selected entity is removed. ECS
+resources are excluded from the entity list.
+
 ## Source and reuse
 
 You can inspect a project's source, but its licence determines whether you can copy, modify, or redistribute its code and assets. Check the licence before reusing them.

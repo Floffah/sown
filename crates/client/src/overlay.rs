@@ -57,12 +57,17 @@ impl Overlay {
         self.devtools.set_capture(capture);
     }
 
-    pub fn prepare(&mut self, window: &Window, devtools_open: bool) {
+    pub fn prepare(
+        &mut self,
+        window: &Window,
+        devtools_open: bool,
+        world: &engine::ecs::bevy_ecs::world::World,
+    ) {
         self.devtools.update();
         let input = self.input.take_egui_input(window);
         let output = self.context.run_ui(input, |ui| {
             if devtools_open {
-                self.devtools.show(ui);
+                self.devtools.show(ui, world);
             }
         });
         self.input

@@ -1,3 +1,4 @@
+mod ecs;
 mod network;
 
 #[derive(Default, PartialEq, Eq)]
@@ -12,6 +13,7 @@ enum Tab {
 pub struct Devtools {
     selected_tab: Tab,
     network: network::Network,
+    ecs: ecs::Inspector,
 }
 
 impl Devtools {
@@ -25,7 +27,7 @@ impl Devtools {
     }
 
     /// Draws the tab bar and panel over the right side of the game view.
-    pub fn show(&mut self, ui: &mut egui::Ui) {
+    pub fn show(&mut self, ui: &mut egui::Ui, world: &engine::ecs::bevy_ecs::world::World) {
         egui::Panel::right("sown_devtools")
             .default_size(320.0)
             .show(ui, |ui| {
@@ -34,8 +36,9 @@ impl Devtools {
                     ui.selectable_value(&mut self.selected_tab, Tab::Ecs, "ECS");
                 });
                 ui.separator();
-                if self.selected_tab == Tab::Network {
-                    self.network.show(ui);
+                match self.selected_tab {
+                    Tab::Network => self.network.show(ui),
+                    Tab::Ecs => self.ecs.show(ui, world),
                 }
                 ui.take_available_space();
             });
@@ -55,7 +58,7 @@ mod tests {
                 ..Default::default()
             },
             |ui| {
-                devtools.show(ui);
+                devtools.show(ui, &engine::ecs::bevy_ecs::world::World::new());
                 remaining = ui.available_rect_before_wrap();
             },
         );

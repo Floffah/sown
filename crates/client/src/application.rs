@@ -120,7 +120,8 @@ impl State {
     }
 
     fn render(&mut self) -> anyhow::Result<renderer::RenderOutcome> {
-        self.overlay.prepare(&self.window, self.devtools_open);
+        self.overlay
+            .prepare(&self.window, self.devtools_open, &self.ecs.world);
         self.renderer
             .render(&mut self.ecs.world, |frame| self.overlay.paint(frame))
     }

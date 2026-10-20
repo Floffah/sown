@@ -867,6 +867,7 @@ name = "devtools"
 version = "0.0.0"
 dependencies = [
  "egui",
+ "engine",
  "networking",
  "protocol",
  "serde_json",

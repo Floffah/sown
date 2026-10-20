@@ -16,6 +16,32 @@ rendering underneath it. Drag its left edge to adjust the width. Select **Networ
 or **ECS** in the tab bar; the selected tab stays selected when you hide and
 reopen the panel.
 
+## Inspect network messages
+
+Select **Network** to see the Sown messages exchanged by the client. Capture
+starts when the connection opens and continues while developer tools are hidden,
+so the list includes the handshake and initial world snapshots.
+
+The upper pane lists messages in capture order. A green **→** badge marks a
+received message; a red **←** badge marks a sent message. Each row shows its
+message type and a truncated JSON preview. Hover over a row for its timestamp,
+connection identifier, channel, and encoded size, including the stream length
+prefix. Click a row to read and select its full formatted JSON in the lower pane.
+Drag the horizontal divider to adjust the space given to each pane.
+
+JSON follows the protobuf JSON mapping: default-valued fields can be omitted,
+and 64-bit integers appear as strings. Malformed message bodies show a capture
+error in the detail view. The inspector displays application messages, including
+stream headers; QUIC acknowledgements and retransmissions are transport traffic
+and do not appear here. Sent messages have been accepted by the local transport;
+this does not confirm that the server received them.
+
+History retains up to 1,000 messages and 4 MiB of message bodies and JSON text,
+evicting the oldest entries when either limit is reached. The **dropped** count
+reports captures lost when the capture queue fills. Capturing does not block
+networking or interrupt gameplay when the queue is full. History is kept in
+memory for the current client run.
+
 ## Source and reuse
 
 You can inspect a project's source, but its licence determines whether you can copy, modify, or redistribute its code and assets. Check the licence before reusing them.

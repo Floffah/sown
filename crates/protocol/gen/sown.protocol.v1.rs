@@ -7,7 +7,6 @@
 
 // util
 
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Vector3 {
     #[prost(float, tag = "1")]
@@ -17,7 +16,6 @@ pub struct Vector3 {
     #[prost(float, tag = "3")]
     pub z: f32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Quaternion {
     #[prost(float, tag = "1")]
@@ -29,7 +27,6 @@ pub struct Quaternion {
     #[prost(float, tag = "4")]
     pub w: f32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Transform {
     #[prost(message, optional, tag = "1")]
@@ -42,8 +39,7 @@ pub struct Transform {
 // snapshots
 
 /// PeerSnapshot is purely for networking and peer discovery, when a new peer joins whom represents a player, an EntitySnapshot is also received
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PeerSnapshot {
     #[prost(uint32, tag = "1")]
     pub peer_id: u32,
@@ -51,7 +47,6 @@ pub struct PeerSnapshot {
     #[prost(string, optional, tag = "16")]
     pub username: ::core::option::Option<::prost::alloc::string::String>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct EntitySnapshot {
     #[prost(uint64, tag = "1")]
@@ -61,13 +56,11 @@ pub struct EntitySnapshot {
     #[prost(message, optional, tag = "3")]
     pub transform: ::core::option::Option<Transform>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClientStreamHeader {
     #[prost(enumeration = "StreamId", tag = "1")]
     pub stream_id: i32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerPeersSnapshot {
     #[prost(uint64, tag = "1")]
@@ -75,7 +68,6 @@ pub struct ServerPeersSnapshot {
     #[prost(message, repeated, tag = "2")]
     pub snapshot: ::prost::alloc::vec::Vec<PeerSnapshot>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerEntitiesSnapshot {
     #[prost(uint64, tag = "1")]
@@ -85,8 +77,7 @@ pub struct ServerEntitiesSnapshot {
 }
 // -- RELIABLE STREAM 1: CONTROL --
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlClientHello {
     #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
@@ -94,39 +85,33 @@ pub struct ControlClientHello {
     #[prost(string, optional, tag = "16")]
     pub username: ::core::option::Option<::prost::alloc::string::String>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlClientJoin {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlServerWelcome {
     #[prost(uint32, tag = "1")]
     pub protocol_version: u32,
     #[prost(uint32, tag = "2")]
     pub peer_id: u32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlServerJoined {
     #[prost(uint64, tag = "1")]
     pub player_entity_id: u64,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlServerError {
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlEnvelope {
     #[prost(oneof = "control_envelope::Payload", tags = "1, 2, 3, 4, 5")]
     pub payload: ::core::option::Option<control_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlEnvelope`.
 pub mod control_envelope {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
         ClientHello(super::ControlClientHello),
@@ -142,31 +127,26 @@ pub mod control_envelope {
 }
 // -- RELIABLE STREAM 2: EVENTS --
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct EventServerPeerAdmitted {
     #[prost(message, optional, tag = "1")]
     pub snapshot: ::core::option::Option<PeerSnapshot>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct EventServerPeerRemoved {
     #[prost(uint32, tag = "1")]
     pub peer_id: u32,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct EventServerEntityCreated {
     #[prost(message, optional, tag = "1")]
     pub snapshot: ::core::option::Option<EntitySnapshot>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct EventServerEntityRemoved {
     #[prost(uint64, tag = "1")]
     pub entity_id: u64,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EventEnvelope {
     #[prost(oneof = "event_envelope::Payload", tags = "1, 2, 3, 4, 5, 6")]
@@ -174,7 +154,6 @@ pub struct EventEnvelope {
 }
 /// Nested message and enum types in `EventEnvelope`.
 pub mod event_envelope {
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
@@ -193,13 +172,11 @@ pub mod event_envelope {
 }
 // -- UNRELIABLE DATAGRAMS --
 
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct DatagramClientLocalPlayerMove {
     #[prost(message, optional, tag = "1")]
     pub transform: ::core::option::Option<Transform>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DatagramEnvelope {
     #[prost(oneof = "datagram_envelope::Payload", tags = "1, 2, 3")]
@@ -207,7 +184,6 @@ pub struct DatagramEnvelope {
 }
 /// Nested message and enum types in `DatagramEnvelope`.
 pub mod datagram_envelope {
-    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
@@ -233,8 +209,8 @@ impl StreamId {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            StreamId::Control => "CONTROL",
-            StreamId::Events => "EVENTS",
+            Self::Control => "CONTROL",
+            Self::Events => "EVENTS",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -246,4 +222,5 @@ impl StreamId {
         }
     }
 }
+include!("sown.protocol.v1.serde.rs");
 // @@protoc_insertion_point(module)

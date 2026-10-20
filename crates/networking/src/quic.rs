@@ -4,7 +4,9 @@ use anyhow::{Context, Result, bail};
 use prost::Message;
 use protocol::v1::{ControlEnvelope, control_envelope};
 use quinn::{RecvStream, SendStream};
+use serde::Serialize;
 
+use crate::inspection::{CaptureContext, Direction};
 use crate::{decode_body, decode_length, encode_message};
 
 mod handshake;
@@ -20,6 +22,8 @@ pub struct ClientStreams {
     pub control_recv: RecvStream,
     pub events_send: SendStream,
     pub events_recv: RecvStream,
+    pub control_capture: Option<CaptureContext>,
+    pub events_capture: Option<CaptureContext>,
 }
 
 /// Reads one length-prefixed protobuf message from a QUIC stream.
@@ -30,7 +34,10 @@ pub struct ClientStreams {
 /// # Errors
 /// Returns an error for truncated frames, invalid protobuf data, oversized
 /// messages, or a stream read failure.
-pub async fn read_message<M: Message + Default>(recv: &mut RecvStream) -> Result<M> {
+pub async fn read_message<M: Message + Default + Serialize>(
+    recv: &mut RecvStream,
+    capture: Option<&CaptureContext>,
+) -> Result<M> {
     let mut prefix = [0; 10];
     for index in 0..prefix.len() {
         recv.read_exact(&mut prefix[index..=index])
@@ -42,6 +49,9 @@ pub async fn read_message<M: Message + Default>(recv: &mut RecvStream) -> Result
             recv.read_exact(&mut bytes)
                 .await
                 .context("Failed to read message body")?;
+            if let Some(capture) = capture {
+                capture.record::<M>(Direction::Received, &bytes, index + 1 + length);
+            }
             return decode_body(&bytes);
         }
     }
@@ -55,18 +65,28 @@ pub async fn read_message<M: Message + Default>(recv: &mut RecvStream) -> Result
 pub async fn write_control(
     send: &mut SendStream,
     payload: control_envelope::Payload,
+    capture: Option<&CaptureContext>,
 ) -> Result<()> {
     let envelope = ControlEnvelope {
         payload: Some(payload),
     };
-    write_message(send, &envelope).await
+    write_message(send, &envelope, capture).await
 }
 
 /// Writes one protobuf message with its length prefix to a QUIC stream.
 ///
 /// # Errors
 /// Returns an error if the message is oversized or the stream write fails.
-pub async fn write_message<M: Message>(send: &mut SendStream, message: &M) -> Result<()> {
-    send.write_all(&encode_message(message)?).await?;
+pub async fn write_message<M: Message + Default + Serialize>(
+    send: &mut SendStream,
+    message: &M,
+    capture: Option<&CaptureContext>,
+) -> Result<()> {
+    let bytes = encode_message(message)?;
+    send.write_all(&bytes).await?;
+    if let Some(capture) = capture {
+        let body = &bytes[bytes.len() - message.encoded_len()..];
+        capture.record::<M>(Direction::Sent, body, bytes.len());
+    }
     Ok(())
 }

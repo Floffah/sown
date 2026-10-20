@@ -248,6 +248,12 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
+name = "base64"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
@@ -861,6 +867,9 @@ name = "devtools"
 version = "0.0.0"
 dependencies = [
  "egui",
+ "networking",
+ "protocol",
+ "serde_json",
 ]
 
 [[package]]
@@ -1815,6 +1824,9 @@ dependencies = [
  "prost",
  "protocol",
  "quinn",
+ "serde",
+ "serde_json",
+ "web-time",
 ]
 
 [[package]]
@@ -2276,12 +2288,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pbjson"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "898bac3fa00d0ba57a4e8289837e965baa2dee8c3749f3b11d45a64b4223d9c3"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+]
+
+[[package]]
 name = "pem"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d354a98a3d1251555de99e8fdd8afda05573c31b82f59063a7b0a29b5527f120"
 dependencies = [
- "base64",
+ "base64 0.23.1",
  "serde_core",
 ]
 
@@ -2458,7 +2480,9 @@ dependencies = [
 name = "protocol"
 version = "0.0.0"
 dependencies = [
+ "pbjson",
  "prost",
+ "serde",
 ]
 
 [[package]]

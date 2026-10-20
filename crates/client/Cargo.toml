@@ -7,6 +7,7 @@ version.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+networking = { path = "../networking" }
 project = { path = "../project" }
 engine = { path = "../engine" }
 renderer = { path = "../renderer" }

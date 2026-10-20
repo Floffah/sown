@@ -135,6 +135,8 @@ pub struct App {
     network_updates: Option<std::sync::mpsc::Receiver<crate::replication::Update>>,
     #[cfg(not(target_arch = "wasm32"))]
     world_ready: Option<tokio::sync::oneshot::Sender<()>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    packet_capture: Option<networking::inspection::CaptureReceiver>,
 }
 
 impl App {
@@ -148,6 +150,8 @@ impl App {
             network_updates: None,
             #[cfg(not(target_arch = "wasm32"))]
             world_ready: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            packet_capture: None,
             #[cfg(target_arch = "wasm32")]
             proxy,
         }
@@ -222,6 +226,9 @@ impl ApplicationHandler<State> for App {
         #[cfg(not(target_arch = "wasm32"))]
         {
             event.network_updates = self.network_updates.take();
+            if let Some(capture) = self.packet_capture.take() {
+                event.overlay.set_capture(capture);
+            }
             if let Some(ready) = self.world_ready.take() {
                 let _ = ready.send(());
             }
@@ -312,14 +319,16 @@ pub fn run() -> anyhow::Result<()> {
             .build()?;
         let (updates, receiver) = std::sync::mpsc::sync_channel(64);
         let (ready, world_ready) = tokio::sync::oneshot::channel();
+        let (capture, packets) = networking::inspection::capture_channel();
         let network_task = network_runtime.spawn(async move {
-            if let Err(error) = crate::connection::run(updates, world_ready).await {
+            if let Err(error) = crate::connection::run(updates, capture, world_ready).await {
                 eprintln!("QUIC connection failed: {error:#}");
             }
         });
         let mut app = App::new();
         app.network_updates = Some(receiver);
         app.world_ready = Some(ready);
+        app.packet_capture = Some(packets);
         let result = event_loop.run_app(&mut app);
         network_task.abort();
         result?;

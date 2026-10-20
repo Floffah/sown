@@ -5,3 +5,5 @@ version.workspace = true
 
 [dependencies]
 prost = "0.14"
+serde = "1.0"
+pbjson = "0.8"

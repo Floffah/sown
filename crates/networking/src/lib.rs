@@ -3,6 +3,7 @@
 use anyhow::{Context, Result, ensure};
 use prost::Message;
 
+pub mod inspection;
 #[cfg(feature = "quic")]
 pub mod quic;
 pub mod session;

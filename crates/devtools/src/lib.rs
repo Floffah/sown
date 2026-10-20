@@ -1,3 +1,5 @@
+mod network;
+
 #[derive(Default, PartialEq, Eq)]
 enum Tab {
     #[default]
@@ -9,9 +11,19 @@ enum Tab {
 #[derive(Default)]
 pub struct Devtools {
     selected_tab: Tab,
+    network: network::Network,
 }
 
 impl Devtools {
+    pub fn set_capture(&mut self, capture: networking::inspection::CaptureReceiver) {
+        self.network.set_capture(capture);
+    }
+
+    /// Drains capture records even when the panel is hidden.
+    pub fn update(&mut self) {
+        self.network.update();
+    }
+
     /// Draws the tab bar and panel over the right side of the game view.
     pub fn show(&mut self, ui: &mut egui::Ui) {
         egui::Panel::right("sown_devtools")
@@ -22,6 +34,9 @@ impl Devtools {
                     ui.selectable_value(&mut self.selected_tab, Tab::Ecs, "ECS");
                 });
                 ui.separator();
+                if self.selected_tab == Tab::Network {
+                    self.network.show(ui);
+                }
                 ui.take_available_space();
             });
     }

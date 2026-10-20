@@ -52,7 +52,13 @@ impl Overlay {
         self.context.egui_wants_keyboard_input()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_capture(&mut self, capture: networking::inspection::CaptureReceiver) {
+        self.devtools.set_capture(capture);
+    }
+
     pub fn prepare(&mut self, window: &Window, devtools_open: bool) {
+        self.devtools.update();
         let input = self.input.take_egui_input(window);
         let output = self.context.run_ui(input, |ui| {
             if devtools_open {

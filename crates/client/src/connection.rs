@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result};
 use networking::{
     ALPN,
+    inspection::{Capture, CaptureContext},
     quic::{handshake, join, read_message},
 };
 use protocol::v1::ControlEnvelope;
@@ -20,6 +21,7 @@ const CERTIFICATE_PATH: &str = ".sown/server-tls.pem";
 
 pub(super) async fn run(
     updates: SyncSender<Update>,
+    capture: Capture,
     world_ready: tokio::sync::oneshot::Receiver<()>,
 ) -> Result<()> {
     let certificate = CertificateDer::from_pem_file(CERTIFICATE_PATH).with_context(|| {
@@ -28,7 +30,7 @@ pub(super) async fn run(
     println!("QUIC connecting to {SERVER_ADDRESS}");
     let (endpoint, connection) = connect(SERVER_ADDRESS.parse()?, certificate).await?;
     println!("QUIC connected to {}", connection.remote_address());
-    let result = run_session(&connection, &updates, world_ready).await;
+    let result = run_session(&connection, &updates, &capture, world_ready).await;
     if result.is_err() {
         connection.close(1_u8.into(), b"Client session failed");
     }
@@ -40,11 +42,15 @@ pub(super) async fn run(
 async fn run_session(
     connection: &Connection,
     updates: &SyncSender<Update>,
+    capture: &Capture,
     world_ready: tokio::sync::oneshot::Receiver<()>,
 ) -> Result<()> {
-    let mut streams = tokio::time::timeout(Duration::from_secs(10), handshake(connection))
-        .await
-        .context("Application handshake timed out")??;
+    let mut streams = tokio::time::timeout(
+        Duration::from_secs(10),
+        handshake(connection, Some(capture)),
+    )
+    .await
+    .context("Application handshake timed out")??;
     println!("Handshake complete: peer {}", streams.peer_id);
 
     world_ready
@@ -61,18 +67,22 @@ async fn run_session(
 
     tokio::select! {
         reason = connection.closed() => println!("QUIC disconnected: {reason}"),
-        response = read_message::<ControlEnvelope>(&mut streams.control_recv) => {
+        response = read_message::<ControlEnvelope>(&mut streams.control_recv, streams.control_capture.as_ref()) => {
             let _ = response?;
             anyhow::bail!("Unexpected Control message during Play");
         }
-        result = receive_events(&mut streams.events_recv, updates) => result?,
+        result = receive_events(&mut streams.events_recv, updates, streams.events_capture.as_ref()) => result?,
     }
     Ok(())
 }
 
-async fn receive_events(recv: &mut quinn::RecvStream, updates: &SyncSender<Update>) -> Result<()> {
+async fn receive_events(
+    recv: &mut quinn::RecvStream,
+    updates: &SyncSender<Update>,
+    capture: Option<&CaptureContext>,
+) -> Result<()> {
     loop {
-        let event = read_message(recv).await?;
+        let event = read_message(recv, capture).await?;
         updates.try_send(Update::Event(event))?;
     }
 }

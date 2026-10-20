@@ -47,6 +47,7 @@ pub(super) async fn run(connection: &Connection, world: &Mutex<World>) -> Result
     write_control(
         &mut control_send,
         control_envelope::Payload::ServerJoined(joined),
+        None,
     )
     .await?;
 
@@ -67,7 +68,7 @@ async fn handshake(
     let (mut send, mut recv) = connection.accept_bi().await?;
     read_header(&mut recv, StreamId::Control).await?;
 
-    let message: ControlEnvelope = read_message(&mut recv).await?;
+    let message: ControlEnvelope = read_message(&mut recv, None).await?;
     let Some(control_envelope::Payload::ClientHello(hello)) = message.payload else {
         bail!("Expected ClientHello on Control");
     };
@@ -81,12 +82,17 @@ async fn handshake(
         protocol_version: PROTOCOL_VERSION,
         peer_id,
     };
-    write_control(&mut send, control_envelope::Payload::ServerWelcome(welcome)).await?;
+    write_control(
+        &mut send,
+        control_envelope::Payload::ServerWelcome(welcome),
+        None,
+    )
+    .await?;
     Ok((send, recv, hello.username))
 }
 
 async fn read_header(recv: &mut RecvStream, expected: StreamId) -> Result<()> {
-    let header: ClientStreamHeader = read_message(recv).await?;
+    let header: ClientStreamHeader = read_message(recv, None).await?;
     let channel = StreamId::try_from(header.stream_id).context("Unknown stream channel")?;
     ensure!(
         channel == expected,
@@ -96,7 +102,7 @@ async fn read_header(recv: &mut RecvStream, expected: StreamId) -> Result<()> {
 }
 
 async fn read_join(recv: &mut RecvStream) -> Result<()> {
-    let message: ControlEnvelope = read_message(recv).await?;
+    let message: ControlEnvelope = read_message(recv, None).await?;
     ensure!(
         matches!(
             message.payload,
@@ -116,12 +122,12 @@ async fn accept_events(connection: &Connection) -> Result<(SendStream, RecvStrea
 }
 
 async fn consume_control(_send: SendStream, mut recv: RecvStream) -> Result<()> {
-    let _: ControlEnvelope = read_message(&mut recv).await?;
+    let _: ControlEnvelope = read_message(&mut recv, None).await?;
     bail!("Unexpected Control message after Joined")
 }
 
 async fn consume_events(mut recv: RecvStream) -> Result<()> {
-    let _: EventEnvelope = read_message(&mut recv).await?;
+    let _: EventEnvelope = read_message(&mut recv, None).await?;
     bail!("Unexpected client Events message")
 }
 
@@ -130,7 +136,7 @@ async fn send_events(
     mut events: mpsc::Receiver<EventEnvelope>,
 ) -> Result<()> {
     while let Some(event) = events.recv().await {
-        write_message(&mut send, &event).await?;
+        write_message(&mut send, &event, None).await?;
     }
     bail!("Events queue closed")
 }

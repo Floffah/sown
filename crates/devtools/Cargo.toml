@@ -5,3 +5,8 @@ version.workspace = true
 
 [dependencies]
 egui = { version = "0.37", features = ["default_fonts"] }
+networking = { path = "../networking" }
+serde_json = "1.0"
+
+[dev-dependencies]
+protocol = { path = "../protocol" }

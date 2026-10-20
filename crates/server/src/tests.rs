@@ -93,36 +93,61 @@ async fn joins_two_players_and_broadcasts_creation_and_removal() -> Result<()> {
     tokio::time::timeout(Duration::from_secs(10), async {
         let server = TestServer::new()?;
         let first = server.connect().await?;
-        let mut a = networking::quic::handshake(&first).await?;
+        let (capture, captured) = networking::inspection::capture_channel();
+        let mut a = networking::quic::handshake(&first, Some(&capture)).await?;
         let second = server.connect().await?;
-        let mut b = networking::quic::handshake(&second).await?;
+        let mut b = networking::quic::handshake(&second, None).await?;
         assert_ne!(a.peer_id, b.peer_id);
         assert_eq!(player_count(&server), 0);
         let initial_a = networking::quic::join(&mut a).await?;
         assert_eq!(initial_a.peers.len(), 1);
         assert_eq!(initial_a.entities.len(), 1);
+        let packets: Vec<_> = std::iter::from_fn(|| captured.try_recv()).collect();
+        assert_eq!(packets.len(), 8);
+        assert_eq!(captured.dropped(), 0);
+        assert_eq!(
+            packets[1].direction,
+            networking::inspection::Direction::Sent
+        );
+        assert_eq!(
+            packets[1].json()?["clientHello"]["protocolVersion"].as_u64(),
+            Some(1)
+        );
+        assert_eq!(
+            packets[2].direction,
+            networking::inspection::Direction::Received
+        );
+        assert_eq!(
+            packets[5].json()?["serverJoined"]["playerEntityId"].as_str(),
+            Some(initial_a.player_entity_id.to_string().as_str())
+        );
+        assert_eq!(packets[7].channel, networking::inspection::Channel::Events);
         let initial_b = networking::quic::join(&mut b).await?;
         assert_eq!(initial_b.peers.len(), 2);
         assert_eq!(initial_b.entities.len(), 2);
         assert_ne!(initial_a.player_entity_id, initial_b.player_entity_id);
         assert_eq!(player_count(&server), 2);
-        let admitted: EventEnvelope = networking::quic::read_message(&mut a.events_recv).await?;
+        let admitted: EventEnvelope =
+            networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
             matches!(admitted.payload, Some(event_envelope::Payload::PeerAdmitted(peer))
             if peer.snapshot.as_ref().unwrap().peer_id == b.peer_id)
         );
-        let created: EventEnvelope = networking::quic::read_message(&mut a.events_recv).await?;
+        let created: EventEnvelope =
+            networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
             matches!(created.payload, Some(event_envelope::Payload::EntityCreated(entity))
             if entity.snapshot.unwrap().entity_id == initial_b.player_entity_id)
         );
         second.close(0_u8.into(), b"Leaving");
-        let removed: EventEnvelope = networking::quic::read_message(&mut a.events_recv).await?;
+        let removed: EventEnvelope =
+            networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
             matches!(removed.payload, Some(event_envelope::Payload::EntityRemoved(entity))
             if entity.entity_id == initial_b.player_entity_id)
         );
-        let removed: EventEnvelope = networking::quic::read_message(&mut a.events_recv).await?;
+        let removed: EventEnvelope =
+            networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
             matches!(removed.payload, Some(event_envelope::Payload::PeerRemoved(peer))
             if peer.peer_id == b.peer_id)
@@ -133,10 +158,38 @@ async fn joins_two_players_and_broadcasts_creation_and_removal() -> Result<()> {
             &ControlEnvelope {
                 payload: Some(control_envelope::Payload::ClientJoin(ControlClientJoin {})),
             },
+            None,
         )
         .await?;
         rejection(&first, "Unexpected Control message after Joined").await?;
         assert_eq!(player_count(&server), 0);
+        server.shutdown().await
+    })
+    .await?
+}
+
+#[tokio::test]
+async fn full_capture_queue_does_not_interrupt_join() -> Result<()> {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        let server = TestServer::new()?;
+        let connection = server.connect().await?;
+        let (capture, captured) = networking::inspection::capture_channel();
+        let context = capture.context(1, networking::inspection::Channel::Control);
+        let body = hello(1).encode_to_vec();
+        for _ in 0..300 {
+            context.record::<ControlEnvelope>(
+                networking::inspection::Direction::Sent,
+                &body,
+                body.len() + 1,
+            );
+        }
+        let dropped_before_join = captured.dropped();
+        assert!(dropped_before_join > 0);
+        let mut streams = networking::quic::handshake(&connection, Some(&capture)).await?;
+        let world = networking::quic::join(&mut streams).await?;
+        assert_eq!(world.entities.len(), 1);
+        assert_eq!(player_count(&server), 1);
+        assert_eq!(captured.dropped(), dropped_before_join + 8);
         server.shutdown().await
     })
     .await?
@@ -153,10 +206,12 @@ async fn accepts_join_before_events_and_rejects_client_events() -> Result<()> {
             &ClientStreamHeader {
                 stream_id: StreamId::Control as i32,
             },
+            None,
         )
         .await?;
-        networking::quic::write_message(&mut control_send, &hello(1)).await?;
-        let welcome: ControlEnvelope = networking::quic::read_message(&mut control_recv).await?;
+        networking::quic::write_message(&mut control_send, &hello(1), None).await?;
+        let welcome: ControlEnvelope =
+            networking::quic::read_message(&mut control_recv, None).await?;
         assert!(matches!(
             welcome.payload,
             Some(control_envelope::Payload::ServerWelcome(_))
@@ -166,6 +221,7 @@ async fn accepts_join_before_events_and_rejects_client_events() -> Result<()> {
             &ControlEnvelope {
                 payload: Some(control_envelope::Payload::ClientJoin(ControlClientJoin {})),
             },
+            None,
         )
         .await?;
         assert_eq!(player_count(&server), 0);
@@ -175,15 +231,17 @@ async fn accepts_join_before_events_and_rejects_client_events() -> Result<()> {
             &ClientStreamHeader {
                 stream_id: StreamId::Events as i32,
             },
+            None,
         )
         .await?;
-        let joined: ControlEnvelope = networking::quic::read_message(&mut control_recv).await?;
+        let joined: ControlEnvelope =
+            networking::quic::read_message(&mut control_recv, None).await?;
         assert!(matches!(
             joined.payload,
             Some(control_envelope::Payload::ServerJoined(_))
         ));
-        let _: EventEnvelope = networking::quic::read_message(&mut events_recv).await?;
-        let _: EventEnvelope = networking::quic::read_message(&mut events_recv).await?;
+        let _: EventEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
+        let _: EventEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
         events_send.write_all(&[1, 0xff]).await?;
         rejection(&connection, "Invalid protobuf message").await?;
         assert_eq!(player_count(&server), 0);
@@ -235,13 +293,14 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         let connection = server.connect().await?;
         let (mut send, mut recv) = connection.open_bi().await?;
         send.write_all(&second_control).await?;
-        let _: ControlEnvelope = networking::quic::read_message(&mut recv).await?;
+        let _: ControlEnvelope = networking::quic::read_message(&mut recv, None).await?;
         let (mut duplicate, _recv) = connection.open_bi().await?;
         networking::quic::write_message(
             &mut duplicate,
             &ClientStreamHeader {
                 stream_id: StreamId::Control as i32,
             },
+            None,
         )
         .await?;
         rejection(&connection, "Expected Events stream").await?;

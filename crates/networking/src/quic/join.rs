@@ -15,9 +15,15 @@ use crate::session::JoinedWorld;
 /// The caller supplies a deadline and closes the connection on failure.
 pub async fn join(streams: &mut ClientStreams) -> Result<JoinedWorld> {
     let request = control_envelope::Payload::ClientJoin(ControlClientJoin {});
-    write_control(&mut streams.control_send, request).await?;
+    write_control(
+        &mut streams.control_send,
+        request,
+        streams.control_capture.as_ref(),
+    )
+    .await?;
 
-    let response: ControlEnvelope = read_message(&mut streams.control_recv).await?;
+    let response: ControlEnvelope =
+        read_message(&mut streams.control_recv, streams.control_capture.as_ref()).await?;
     let player_entity_id = match response.payload {
         Some(control_envelope::Payload::ServerJoined(joined)) => joined.player_entity_id,
         Some(control_envelope::Payload::ServerError(error)) => {
@@ -27,8 +33,8 @@ pub async fn join(streams: &mut ClientStreams) -> Result<JoinedWorld> {
     };
     ensure!(player_entity_id != 0, "Invalid player entity ID in Joined");
 
-    let first = read_message(&mut streams.events_recv).await?;
-    let second = read_message(&mut streams.events_recv).await?;
+    let first = read_message(&mut streams.events_recv, streams.events_capture.as_ref()).await?;
+    let second = read_message(&mut streams.events_recv, streams.events_capture.as_ref()).await?;
     let (peers, entities) = parse_initial_snapshots([first, second])?;
 
     let world = JoinedWorld {

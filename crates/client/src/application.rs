@@ -318,11 +318,19 @@ pub fn run() -> anyhow::Result<()> {
             .worker_threads(1)
             .enable_all()
             .build()?;
+        let local_server = server::EmbeddedServer::start(
+            include_str!("../../../fixtures/minimal-room/worlds/main.world"),
+            std::path::Path::new(".sown"),
+        )?;
+        let address = local_server.local_addr()?;
+        let certificate = local_server.certificate();
         let (updates, receiver) = std::sync::mpsc::sync_channel(64);
         let (ready, world_ready) = tokio::sync::oneshot::channel();
         let (capture, packets) = networking::inspection::capture_channel();
         let network_task = network_runtime.spawn(async move {
-            if let Err(error) = crate::connection::run(updates, capture, world_ready).await {
+            if let Err(error) =
+                crate::connection::run(address, certificate, updates, capture, world_ready).await
+            {
                 eprintln!("QUIC connection failed: {error:#}");
             }
         });
@@ -332,7 +340,13 @@ pub fn run() -> anyhow::Result<()> {
         app.packet_capture = Some(packets);
         let result = event_loop.run_app(&mut app);
         network_task.abort();
+        network_runtime.block_on(async {
+            let _ = network_task.await;
+        });
+        drop(app);
+        let shutdown = local_server.shutdown();
         result?;
+        shutdown?;
     }
     #[cfg(target_arch = "wasm32")]
     {

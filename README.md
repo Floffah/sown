@@ -1,7 +1,7 @@
 # Sown
 
 > [!NOTE]
-> Sown is not finished but I think it is a very interesting idea. If you want to test it its pretty simple: install [Rust](https://rust-lang.org/), install [Just](https://github.com/casey/just), clone the repo then in two terminals run `just run-server` and `just run-client`. If you wanna see what its doing under the hood, press F12 and my devtools like panel will open
+> Sown is not finished but I think it is a very interesting idea. If you want to test it its pretty simple: install [Rust](https://rust-lang.org/), install [Just](https://github.com/casey/just), clone the repo, then run `just run`. The client will start real embedded server locally and connect to it so you dont need to run your own server. If you wanna see what its doing under the hood, press F12 and my devtools like panel will open
 
 Sown is an open-source platform for creating, hosting, and exploring interconnected virtual worlds. Play games, meet friends, build a place of your own, and travel between experiences run by independent creators and communities.
 

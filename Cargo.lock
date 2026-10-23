@@ -602,6 +602,7 @@ dependencies = [
  "quinn",
  "rcgen",
  "renderer",
+ "server",
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",

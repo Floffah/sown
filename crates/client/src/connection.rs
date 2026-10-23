@@ -12,23 +12,19 @@ use networking::{
 };
 use protocol::v1::ControlEnvelope;
 use quinn::{Connection, Endpoint, crypto::rustls::QuicClientConfig, rustls};
-use rustls::pki_types::{CertificateDer, pem::PemObject};
+use rustls::pki_types::CertificateDer;
 
 use crate::replication::Update;
 
-const SERVER_ADDRESS: &str = "127.0.0.1:50420";
-const CERTIFICATE_PATH: &str = ".sown/server-tls.pem";
-
 pub(super) async fn run(
+    address: SocketAddr,
+    certificate: CertificateDer<'static>,
     updates: SyncSender<Update>,
     capture: Capture,
     world_ready: tokio::sync::oneshot::Receiver<()>,
 ) -> Result<()> {
-    let certificate = CertificateDer::from_pem_file(CERTIFICATE_PATH).with_context(|| {
-        format!("Failed to load {CERTIFICATE_PATH}: run the server from the same working directory first")
-    })?;
-    println!("QUIC connecting to {SERVER_ADDRESS}");
-    let (endpoint, connection) = connect(SERVER_ADDRESS.parse()?, certificate).await?;
+    println!("QUIC connecting to {address}");
+    let (endpoint, connection) = connect(address, certificate).await?;
     println!("QUIC connected to {}", connection.remote_address());
     let result = run_session(&connection, &updates, &capture, world_ready).await;
     if result.is_err() {
@@ -116,6 +112,54 @@ async fn connect(
 mod tests {
     use super::*;
     use rustls::pki_types::PrivatePkcs8KeyDer;
+
+    #[tokio::test]
+    async fn embedded_server_joins_through_client_connection_and_shuts_down() -> Result<()> {
+        tokio::time::timeout(Duration::from_secs(15), async {
+            let directory = std::env::temp_dir().join(format!(
+                "sown-embedded-client-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_nanos(),
+            ));
+            let server = server::EmbeddedServer::start(
+                include_str!("../../../fixtures/minimal-room/worlds/main.world"),
+                &directory,
+            )?;
+            let address = server.local_addr()?;
+            assert!(address.ip().is_loopback());
+            assert_ne!(address.port(), 0);
+            let certificate = server.certificate();
+            let (updates, receiver) = std::sync::mpsc::sync_channel(64);
+            let (capture, packets) = networking::inspection::capture_channel();
+            let (ready, world_ready) = tokio::sync::oneshot::channel();
+            ready.send(()).unwrap();
+            let connection = tokio::spawn(run(address, certificate, updates, capture, world_ready));
+            let update =
+                tokio::task::spawn_blocking(move || receiver.recv_timeout(Duration::from_secs(5)))
+                    .await??;
+            let Update::Joined { world, .. } = update else {
+                anyhow::bail!("Expected the embedded server's join baseline");
+            };
+            assert_eq!(world.peers.len(), 1);
+            assert!(
+                world
+                    .entities
+                    .iter()
+                    .any(|entity| entity.entity_id == world.player_entity_id)
+            );
+            let captured: Vec<_> = std::iter::from_fn(|| packets.try_recv()).collect();
+            assert_eq!(captured.len(), 8);
+            tokio::task::spawn_blocking(move || server.shutdown()).await??;
+            // Closing the server can finish either the connection or an outstanding stream read.
+            let _ = connection.await?;
+            let _socket = std::net::UdpSocket::bind(address)?;
+            std::fs::remove_dir_all(directory)?;
+            Ok(())
+        })
+        .await?
+    }
 
     #[tokio::test]
     async fn idle_connection_stays_alive_and_rejects_an_untrusted_certificate() -> Result<()> {

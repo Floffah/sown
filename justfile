@@ -18,8 +18,8 @@ fixtures profile="dev":
     cargo run --locked --quiet --profile {{profile}} -p cli -- check fixtures/minimal-room
 
 alias run := run-client
-run-client:
-    cargo run --bin client
+run-client *args:
+    cargo run --bin client -- {{args}}
 
 [env("SSLKEYLOGFILE", justfile_directory() + "/.sown/tls-keys.log")]
 run-server:

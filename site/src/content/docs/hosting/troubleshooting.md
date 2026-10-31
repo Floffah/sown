@@ -12,7 +12,7 @@ If saved credentials are invalid, inspect the server's startup error and restore
 
 ## Connection times out
 
-Check that the server prints `QUIC listening on 127.0.0.1:50420`. The reference client connects to that loopback address and applies a 5-second transport connection deadline.
+Check that the server prints `QUIC listening on 127.0.0.1:50420` and start the client with `--connect 127.0.0.1:50420`. The client applies a 5-second transport connection deadline.
 
 If the address is already in use, stop the process occupying it before starting another server.
 

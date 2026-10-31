@@ -97,7 +97,12 @@ async fn connect(
     let mut transport = quinn::TransportConfig::default();
     transport.keep_alive_interval(Some(Duration::from_secs(5)));
     config.transport_config(Arc::new(transport));
-    let mut endpoint = Endpoint::client("127.0.0.1:0".parse()?)?;
+    let bind_address = if address.is_ipv6() {
+        "[::]:0"
+    } else {
+        "0.0.0.0:0"
+    };
+    let mut endpoint = Endpoint::client(bind_address.parse()?)?;
     endpoint.set_default_client_config(config);
     let connection = tokio::time::timeout(
         Duration::from_secs(5),

@@ -13,10 +13,12 @@ just run-server
 In another terminal, from the same checkout directory, start the client:
 
 ```sh
-just run-client
+just run-client --connect 127.0.0.1:50420
 ```
 
-The client opens the Minimal Room scene and connects to `127.0.0.1:50420`. It reads the server's localhost certificate from `.sown/server-tls.pem` in its working directory. Connection status and failures appear in the terminal. A connection failure leaves the game window open.
+The `--connect IP:PORT` development option connects to the specified server without starting a server inside the client. The client opens the Minimal Room scene and reads the server's localhost certificate from `.sown/server-tls.pem` in its working directory. Repeat the client command in another terminal to connect a second client to the same server. Both executables must use the same compiled world fixture.
+
+Connection status and failures appear in the terminal. Missing or invalid certificates prevent startup. A transport or session failure leaves the game window open.
 
 ## Controls
 

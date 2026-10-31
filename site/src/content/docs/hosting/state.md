@@ -16,7 +16,7 @@ The reference server stores its self-signed `localhost` certificate and private 
 
 The server generates this file on first startup and reuses it on each restart. Invalid saved credentials cause startup to fail without replacing the file. On Unix, the server creates the credential file with owner-only permissions.
 
-The native client reads the certificate from the same relative path and trusts it for the localhost connection. Start client and server from the same directory so they use the same certificate. TLS authenticates the server connection; it does not establish a player's identity.
+With `--connect IP:PORT`, the native client reads the certificate from the same relative path and trusts it for the localhost connection. Start client and server from the same directory so they use the same certificate. TLS authenticates the server connection; it does not establish a player's identity.
 
 ## Handling state
 

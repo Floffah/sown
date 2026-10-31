@@ -301,7 +301,9 @@ impl ApplicationHandler<State> for App {
 }
 
 /// # Errors
-pub fn run() -> anyhow::Result<()> {
+pub fn run(
+    #[cfg(not(target_arch = "wasm32"))] server_address: Option<std::net::SocketAddr>,
+) -> anyhow::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         env_logger::init();
@@ -318,12 +320,21 @@ pub fn run() -> anyhow::Result<()> {
             .worker_threads(1)
             .enable_all()
             .build()?;
-        let local_server = server::EmbeddedServer::start(
-            include_str!("../../../fixtures/minimal-room/worlds/main.world"),
-            std::path::Path::new(".sown"),
-        )?;
-        let address = local_server.local_addr()?;
-        let certificate = local_server.certificate();
+        let (local_server, address, certificate) = if let Some(address) = server_address {
+            use anyhow::Context;
+            use quinn::rustls::pki_types::{CertificateDer, pem::PemObject};
+            let certificate = CertificateDer::from_pem_file(".sown/server-tls.pem")
+                    .context("Failed to load .sown/server-tls.pem: start the standalone server from the same working directory first")?;
+            (None, address, certificate)
+        } else {
+            let server = server::EmbeddedServer::start(
+                include_str!("../../../fixtures/minimal-room/worlds/main.world"),
+                std::path::Path::new(".sown"),
+            )?;
+            let address = server.local_addr()?;
+            let certificate = server.certificate();
+            (Some(server), address, certificate)
+        };
         let (updates, receiver) = std::sync::mpsc::sync_channel(64);
         let (ready, world_ready) = tokio::sync::oneshot::channel();
         let (capture, packets) = networking::inspection::capture_channel();
@@ -344,7 +355,7 @@ pub fn run() -> anyhow::Result<()> {
             let _ = network_task.await;
         });
         drop(app);
-        let shutdown = local_server.shutdown();
+        let shutdown = local_server.map_or(Ok(()), server::EmbeddedServer::shutdown);
         result?;
         shutdown?;
     }

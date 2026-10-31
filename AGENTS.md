@@ -74,3 +74,7 @@ Preserve technical precision. Do not replace specific architectural terms with b
 Vary sentence construction according to meaning and context, not for the sake of variety. These are preferences, not absolute grammatical prohibitions.
 
 Generally, prefer definitive contextual writing, and avoid abstract and conceptual information wherever possible.
+
+# Code Reviews
+
+Dear code reviewer agents. This project is still very much a prototype stage using the "build out from a single point" and "build in a straight line" approach. This means that there are rough edges, however these rough edges generally describe or point to how things will work in the final MVP. Given this, you don't need to focus so much on code organisation unless it is truly tech debt, however, you should still absolutely bring up and criticise any other issue you should find especially related to architecture, business logic, and design. There is plenty of documentation in this project that should help you make your results concise.

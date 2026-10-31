@@ -14,6 +14,10 @@ The reference server loads the embedded Minimal Room world, validates its tree a
 
 The server prints the loaded world name and listening address on startup, then logs connection status to the terminal. Start the [local client](../../using/local-client/) from the same working directory so it can read the generated localhost certificate.
 
+```sh
+just run-client --connect 127.0.0.1:50420
+```
+
 ## World content
 
 Both reference executables embed `fixtures/minimal-room/worlds/main.world`. Edit that file and recompile to change the scene. If you run an executable from another directory, it uses that directory for state and loads the same embedded world.

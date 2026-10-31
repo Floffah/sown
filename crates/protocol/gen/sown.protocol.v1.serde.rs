@@ -93,6 +93,117 @@ impl<'de> serde::Deserialize<'de> for ClientStreamHeader {
         deserializer.deserialize_struct("sown.protocol.v1.ClientStreamHeader", FIELDS, GeneratedVisitor)
     }
 }
+impl serde::Serialize for ControlClientEnvelope {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.payload.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.ControlClientEnvelope", len)?;
+        if let Some(v) = self.payload.as_ref() {
+            match v {
+                control_client_envelope::Payload::ClientHello(v) => {
+                    struct_ser.serialize_field("clientHello", v)?;
+                }
+                control_client_envelope::Payload::ClientJoin(v) => {
+                    struct_ser.serialize_field("clientJoin", v)?;
+                }
+            }
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ControlClientEnvelope {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "client_hello",
+            "clientHello",
+            "client_join",
+            "clientJoin",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            ClientHello,
+            ClientJoin,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "clientHello" | "client_hello" => Ok(GeneratedField::ClientHello),
+                            "clientJoin" | "client_join" => Ok(GeneratedField::ClientJoin),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ControlClientEnvelope;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct sown.protocol.v1.ControlClientEnvelope")
+            }
+
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<ControlClientEnvelope, V::Error>
+                where
+                    V: serde::de::MapAccess<'de>,
+            {
+                let mut payload__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::ClientHello => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("clientHello"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_client_envelope::Payload::ClientHello)
+;
+                        }
+                        GeneratedField::ClientJoin => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("clientJoin"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_client_envelope::Payload::ClientJoin)
+;
+                        }
+                    }
+                }
+                Ok(ControlClientEnvelope {
+                    payload: payload__,
+                })
+            }
+        }
+        deserializer.deserialize_struct("sown.protocol.v1.ControlClientEnvelope", FIELDS, GeneratedVisitor)
+    }
+}
 impl serde::Serialize for ControlClientHello {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -275,7 +386,7 @@ impl<'de> serde::Deserialize<'de> for ControlClientJoin {
         deserializer.deserialize_struct("sown.protocol.v1.ControlClientJoin", FIELDS, GeneratedVisitor)
     }
 }
-impl serde::Serialize for ControlEnvelope {
+impl serde::Serialize for ControlServerEnvelope {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -286,22 +397,16 @@ impl serde::Serialize for ControlEnvelope {
         if self.payload.is_some() {
             len += 1;
         }
-        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.ControlEnvelope", len)?;
+        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.ControlServerEnvelope", len)?;
         if let Some(v) = self.payload.as_ref() {
             match v {
-                control_envelope::Payload::ClientHello(v) => {
-                    struct_ser.serialize_field("clientHello", v)?;
-                }
-                control_envelope::Payload::ServerWelcome(v) => {
+                control_server_envelope::Payload::ServerWelcome(v) => {
                     struct_ser.serialize_field("serverWelcome", v)?;
                 }
-                control_envelope::Payload::ServerError(v) => {
+                control_server_envelope::Payload::ServerError(v) => {
                     struct_ser.serialize_field("serverError", v)?;
                 }
-                control_envelope::Payload::ClientJoin(v) => {
-                    struct_ser.serialize_field("clientJoin", v)?;
-                }
-                control_envelope::Payload::ServerJoined(v) => {
+                control_server_envelope::Payload::ServerJoined(v) => {
                     struct_ser.serialize_field("serverJoined", v)?;
                 }
             }
@@ -309,31 +414,25 @@ impl serde::Serialize for ControlEnvelope {
         struct_ser.end()
     }
 }
-impl<'de> serde::Deserialize<'de> for ControlEnvelope {
+impl<'de> serde::Deserialize<'de> for ControlServerEnvelope {
     #[allow(deprecated)]
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &[&str] = &[
-            "client_hello",
-            "clientHello",
             "server_welcome",
             "serverWelcome",
             "server_error",
             "serverError",
-            "client_join",
-            "clientJoin",
             "server_joined",
             "serverJoined",
         ];
 
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
-            ClientHello,
             ServerWelcome,
             ServerError,
-            ClientJoin,
             ServerJoined,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -356,10 +455,8 @@ impl<'de> serde::Deserialize<'de> for ControlEnvelope {
                         E: serde::de::Error,
                     {
                         match value {
-                            "clientHello" | "client_hello" => Ok(GeneratedField::ClientHello),
                             "serverWelcome" | "server_welcome" => Ok(GeneratedField::ServerWelcome),
                             "serverError" | "server_error" => Ok(GeneratedField::ServerError),
-                            "clientJoin" | "client_join" => Ok(GeneratedField::ClientJoin),
                             "serverJoined" | "server_joined" => Ok(GeneratedField::ServerJoined),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
@@ -370,62 +467,48 @@ impl<'de> serde::Deserialize<'de> for ControlEnvelope {
         }
         struct GeneratedVisitor;
         impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = ControlEnvelope;
+            type Value = ControlServerEnvelope;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("struct sown.protocol.v1.ControlEnvelope")
+                formatter.write_str("struct sown.protocol.v1.ControlServerEnvelope")
             }
 
-            fn visit_map<V>(self, mut map_: V) -> std::result::Result<ControlEnvelope, V::Error>
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<ControlServerEnvelope, V::Error>
                 where
                     V: serde::de::MapAccess<'de>,
             {
                 let mut payload__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
-                        GeneratedField::ClientHello => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("clientHello"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_envelope::Payload::ClientHello)
-;
-                        }
                         GeneratedField::ServerWelcome => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("serverWelcome"));
                             }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_envelope::Payload::ServerWelcome)
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_server_envelope::Payload::ServerWelcome)
 ;
                         }
                         GeneratedField::ServerError => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("serverError"));
                             }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_envelope::Payload::ServerError)
-;
-                        }
-                        GeneratedField::ClientJoin => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("clientJoin"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_envelope::Payload::ClientJoin)
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_server_envelope::Payload::ServerError)
 ;
                         }
                         GeneratedField::ServerJoined => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("serverJoined"));
                             }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_envelope::Payload::ServerJoined)
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(control_server_envelope::Payload::ServerJoined)
 ;
                         }
                     }
                 }
-                Ok(ControlEnvelope {
+                Ok(ControlServerEnvelope {
                     payload: payload__,
                 })
             }
         }
-        deserializer.deserialize_struct("sown.protocol.v1.ControlEnvelope", FIELDS, GeneratedVisitor)
+        deserializer.deserialize_struct("sown.protocol.v1.ControlServerEnvelope", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for ControlServerError {
@@ -729,6 +812,103 @@ impl<'de> serde::Deserialize<'de> for ControlServerWelcome {
         deserializer.deserialize_struct("sown.protocol.v1.ControlServerWelcome", FIELDS, GeneratedVisitor)
     }
 }
+impl serde::Serialize for DatagramClientEnvelope {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.payload.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.DatagramClientEnvelope", len)?;
+        if let Some(v) = self.payload.as_ref() {
+            match v {
+                datagram_client_envelope::Payload::LocalPlayerMove(v) => {
+                    struct_ser.serialize_field("localPlayerMove", v)?;
+                }
+            }
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for DatagramClientEnvelope {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "local_player_move",
+            "localPlayerMove",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            LocalPlayerMove,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "localPlayerMove" | "local_player_move" => Ok(GeneratedField::LocalPlayerMove),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = DatagramClientEnvelope;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct sown.protocol.v1.DatagramClientEnvelope")
+            }
+
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<DatagramClientEnvelope, V::Error>
+                where
+                    V: serde::de::MapAccess<'de>,
+            {
+                let mut payload__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::LocalPlayerMove => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("localPlayerMove"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_client_envelope::Payload::LocalPlayerMove)
+;
+                        }
+                    }
+                }
+                Ok(DatagramClientEnvelope {
+                    payload: payload__,
+                })
+            }
+        }
+        deserializer.deserialize_struct("sown.protocol.v1.DatagramClientEnvelope", FIELDS, GeneratedVisitor)
+    }
+}
 impl serde::Serialize for DatagramClientLocalPlayerMove {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -820,7 +1000,7 @@ impl<'de> serde::Deserialize<'de> for DatagramClientLocalPlayerMove {
         deserializer.deserialize_struct("sown.protocol.v1.DatagramClientLocalPlayerMove", FIELDS, GeneratedVisitor)
     }
 }
-impl serde::Serialize for DatagramEnvelope {
+impl serde::Serialize for DatagramServerEnvelope {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -831,16 +1011,13 @@ impl serde::Serialize for DatagramEnvelope {
         if self.payload.is_some() {
             len += 1;
         }
-        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.DatagramEnvelope", len)?;
+        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.DatagramServerEnvelope", len)?;
         if let Some(v) = self.payload.as_ref() {
             match v {
-                datagram_envelope::Payload::LocalPlayerMove(v) => {
-                    struct_ser.serialize_field("localPlayerMove", v)?;
-                }
-                datagram_envelope::Payload::PeersSnapshot(v) => {
+                datagram_server_envelope::Payload::PeersSnapshot(v) => {
                     struct_ser.serialize_field("peersSnapshot", v)?;
                 }
-                datagram_envelope::Payload::EntitiesSnapshot(v) => {
+                datagram_server_envelope::Payload::EntitiesSnapshot(v) => {
                     struct_ser.serialize_field("entitiesSnapshot", v)?;
                 }
             }
@@ -848,15 +1025,13 @@ impl serde::Serialize for DatagramEnvelope {
         struct_ser.end()
     }
 }
-impl<'de> serde::Deserialize<'de> for DatagramEnvelope {
+impl<'de> serde::Deserialize<'de> for DatagramServerEnvelope {
     #[allow(deprecated)]
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &[&str] = &[
-            "local_player_move",
-            "localPlayerMove",
             "peers_snapshot",
             "peersSnapshot",
             "entities_snapshot",
@@ -865,7 +1040,6 @@ impl<'de> serde::Deserialize<'de> for DatagramEnvelope {
 
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
-            LocalPlayerMove,
             PeersSnapshot,
             EntitiesSnapshot,
         }
@@ -889,7 +1063,6 @@ impl<'de> serde::Deserialize<'de> for DatagramEnvelope {
                         E: serde::de::Error,
                     {
                         match value {
-                            "localPlayerMove" | "local_player_move" => Ok(GeneratedField::LocalPlayerMove),
                             "peersSnapshot" | "peers_snapshot" => Ok(GeneratedField::PeersSnapshot),
                             "entitiesSnapshot" | "entities_snapshot" => Ok(GeneratedField::EntitiesSnapshot),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
@@ -901,48 +1074,41 @@ impl<'de> serde::Deserialize<'de> for DatagramEnvelope {
         }
         struct GeneratedVisitor;
         impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = DatagramEnvelope;
+            type Value = DatagramServerEnvelope;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("struct sown.protocol.v1.DatagramEnvelope")
+                formatter.write_str("struct sown.protocol.v1.DatagramServerEnvelope")
             }
 
-            fn visit_map<V>(self, mut map_: V) -> std::result::Result<DatagramEnvelope, V::Error>
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<DatagramServerEnvelope, V::Error>
                 where
                     V: serde::de::MapAccess<'de>,
             {
                 let mut payload__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
-                        GeneratedField::LocalPlayerMove => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("localPlayerMove"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_envelope::Payload::LocalPlayerMove)
-;
-                        }
                         GeneratedField::PeersSnapshot => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("peersSnapshot"));
                             }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_envelope::Payload::PeersSnapshot)
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_server_envelope::Payload::PeersSnapshot)
 ;
                         }
                         GeneratedField::EntitiesSnapshot => {
                             if payload__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("entitiesSnapshot"));
                             }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_envelope::Payload::EntitiesSnapshot)
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(datagram_server_envelope::Payload::EntitiesSnapshot)
 ;
                         }
                     }
                 }
-                Ok(DatagramEnvelope {
+                Ok(DatagramServerEnvelope {
                     payload: payload__,
                 })
             }
         }
-        deserializer.deserialize_struct("sown.protocol.v1.DatagramEnvelope", FIELDS, GeneratedVisitor)
+        deserializer.deserialize_struct("sown.protocol.v1.DatagramServerEnvelope", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for EntitySnapshot {
@@ -1078,72 +1244,29 @@ impl<'de> serde::Deserialize<'de> for EntitySnapshot {
         deserializer.deserialize_struct("sown.protocol.v1.EntitySnapshot", FIELDS, GeneratedVisitor)
     }
 }
-impl serde::Serialize for EventEnvelope {
+impl serde::Serialize for EventClientEnvelope {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if self.payload.is_some() {
-            len += 1;
-        }
-        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.EventEnvelope", len)?;
-        if let Some(v) = self.payload.as_ref() {
-            match v {
-                event_envelope::Payload::PeerAdmitted(v) => {
-                    struct_ser.serialize_field("peerAdmitted", v)?;
-                }
-                event_envelope::Payload::PeerRemoved(v) => {
-                    struct_ser.serialize_field("peerRemoved", v)?;
-                }
-                event_envelope::Payload::EntityCreated(v) => {
-                    struct_ser.serialize_field("entityCreated", v)?;
-                }
-                event_envelope::Payload::EntityRemoved(v) => {
-                    struct_ser.serialize_field("entityRemoved", v)?;
-                }
-                event_envelope::Payload::InitialPeersSnapshot(v) => {
-                    struct_ser.serialize_field("initialPeersSnapshot", v)?;
-                }
-                event_envelope::Payload::InitialEntitiesSnapshot(v) => {
-                    struct_ser.serialize_field("initialEntitiesSnapshot", v)?;
-                }
-            }
-        }
+        let len = 0;
+        let struct_ser = serializer.serialize_struct("sown.protocol.v1.EventClientEnvelope", len)?;
         struct_ser.end()
     }
 }
-impl<'de> serde::Deserialize<'de> for EventEnvelope {
+impl<'de> serde::Deserialize<'de> for EventClientEnvelope {
     #[allow(deprecated)]
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &[&str] = &[
-            "peer_admitted",
-            "peerAdmitted",
-            "peer_removed",
-            "peerRemoved",
-            "entity_created",
-            "entityCreated",
-            "entity_removed",
-            "entityRemoved",
-            "initial_peers_snapshot",
-            "initialPeersSnapshot",
-            "initial_entities_snapshot",
-            "initialEntitiesSnapshot",
         ];
 
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
-            PeerAdmitted,
-            PeerRemoved,
-            EntityCreated,
-            EntityRemoved,
-            InitialPeersSnapshot,
-            InitialEntitiesSnapshot,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
             fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
@@ -1164,15 +1287,7 @@ impl<'de> serde::Deserialize<'de> for EventEnvelope {
                     where
                         E: serde::de::Error,
                     {
-                        match value {
-                            "peerAdmitted" | "peer_admitted" => Ok(GeneratedField::PeerAdmitted),
-                            "peerRemoved" | "peer_removed" => Ok(GeneratedField::PeerRemoved),
-                            "entityCreated" | "entity_created" => Ok(GeneratedField::EntityCreated),
-                            "entityRemoved" | "entity_removed" => Ok(GeneratedField::EntityRemoved),
-                            "initialPeersSnapshot" | "initial_peers_snapshot" => Ok(GeneratedField::InitialPeersSnapshot),
-                            "initialEntitiesSnapshot" | "initial_entities_snapshot" => Ok(GeneratedField::InitialEntitiesSnapshot),
-                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
-                        }
+                            Err(serde::de::Error::unknown_field(value, FIELDS))
                     }
                 }
                 deserializer.deserialize_identifier(GeneratedVisitor)
@@ -1180,69 +1295,24 @@ impl<'de> serde::Deserialize<'de> for EventEnvelope {
         }
         struct GeneratedVisitor;
         impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = EventEnvelope;
+            type Value = EventClientEnvelope;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("struct sown.protocol.v1.EventEnvelope")
+                formatter.write_str("struct sown.protocol.v1.EventClientEnvelope")
             }
 
-            fn visit_map<V>(self, mut map_: V) -> std::result::Result<EventEnvelope, V::Error>
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<EventClientEnvelope, V::Error>
                 where
                     V: serde::de::MapAccess<'de>,
             {
-                let mut payload__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::PeerAdmitted => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("peerAdmitted"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::PeerAdmitted)
-;
-                        }
-                        GeneratedField::PeerRemoved => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("peerRemoved"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::PeerRemoved)
-;
-                        }
-                        GeneratedField::EntityCreated => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("entityCreated"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::EntityCreated)
-;
-                        }
-                        GeneratedField::EntityRemoved => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("entityRemoved"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::EntityRemoved)
-;
-                        }
-                        GeneratedField::InitialPeersSnapshot => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("initialPeersSnapshot"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::InitialPeersSnapshot)
-;
-                        }
-                        GeneratedField::InitialEntitiesSnapshot => {
-                            if payload__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("initialEntitiesSnapshot"));
-                            }
-                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_envelope::Payload::InitialEntitiesSnapshot)
-;
-                        }
-                    }
+                while map_.next_key::<GeneratedField>()?.is_some() {
+                    let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                 }
-                Ok(EventEnvelope {
-                    payload: payload__,
+                Ok(EventClientEnvelope {
                 })
             }
         }
-        deserializer.deserialize_struct("sown.protocol.v1.EventEnvelope", FIELDS, GeneratedVisitor)
+        deserializer.deserialize_struct("sown.protocol.v1.EventClientEnvelope", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for EventServerEntityCreated {
@@ -1430,6 +1500,173 @@ impl<'de> serde::Deserialize<'de> for EventServerEntityRemoved {
             }
         }
         deserializer.deserialize_struct("sown.protocol.v1.EventServerEntityRemoved", FIELDS, GeneratedVisitor)
+    }
+}
+impl serde::Serialize for EventServerEnvelope {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.payload.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer.serialize_struct("sown.protocol.v1.EventServerEnvelope", len)?;
+        if let Some(v) = self.payload.as_ref() {
+            match v {
+                event_server_envelope::Payload::PeerAdmitted(v) => {
+                    struct_ser.serialize_field("peerAdmitted", v)?;
+                }
+                event_server_envelope::Payload::PeerRemoved(v) => {
+                    struct_ser.serialize_field("peerRemoved", v)?;
+                }
+                event_server_envelope::Payload::EntityCreated(v) => {
+                    struct_ser.serialize_field("entityCreated", v)?;
+                }
+                event_server_envelope::Payload::EntityRemoved(v) => {
+                    struct_ser.serialize_field("entityRemoved", v)?;
+                }
+                event_server_envelope::Payload::InitialPeersSnapshot(v) => {
+                    struct_ser.serialize_field("initialPeersSnapshot", v)?;
+                }
+                event_server_envelope::Payload::InitialEntitiesSnapshot(v) => {
+                    struct_ser.serialize_field("initialEntitiesSnapshot", v)?;
+                }
+            }
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for EventServerEnvelope {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "peer_admitted",
+            "peerAdmitted",
+            "peer_removed",
+            "peerRemoved",
+            "entity_created",
+            "entityCreated",
+            "entity_removed",
+            "entityRemoved",
+            "initial_peers_snapshot",
+            "initialPeersSnapshot",
+            "initial_entities_snapshot",
+            "initialEntitiesSnapshot",
+        ];
+
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            PeerAdmitted,
+            PeerRemoved,
+            EntityCreated,
+            EntityRemoved,
+            InitialPeersSnapshot,
+            InitialEntitiesSnapshot,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+
+                impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+                    type Value = GeneratedField;
+
+                    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", &FIELDS)
+                    }
+
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(self, value: &str) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "peerAdmitted" | "peer_admitted" => Ok(GeneratedField::PeerAdmitted),
+                            "peerRemoved" | "peer_removed" => Ok(GeneratedField::PeerRemoved),
+                            "entityCreated" | "entity_created" => Ok(GeneratedField::EntityCreated),
+                            "entityRemoved" | "entity_removed" => Ok(GeneratedField::EntityRemoved),
+                            "initialPeersSnapshot" | "initial_peers_snapshot" => Ok(GeneratedField::InitialPeersSnapshot),
+                            "initialEntitiesSnapshot" | "initial_entities_snapshot" => Ok(GeneratedField::InitialEntitiesSnapshot),
+                            _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = EventServerEnvelope;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("struct sown.protocol.v1.EventServerEnvelope")
+            }
+
+            fn visit_map<V>(self, mut map_: V) -> std::result::Result<EventServerEnvelope, V::Error>
+                where
+                    V: serde::de::MapAccess<'de>,
+            {
+                let mut payload__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::PeerAdmitted => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("peerAdmitted"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::PeerAdmitted)
+;
+                        }
+                        GeneratedField::PeerRemoved => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("peerRemoved"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::PeerRemoved)
+;
+                        }
+                        GeneratedField::EntityCreated => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("entityCreated"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::EntityCreated)
+;
+                        }
+                        GeneratedField::EntityRemoved => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("entityRemoved"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::EntityRemoved)
+;
+                        }
+                        GeneratedField::InitialPeersSnapshot => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("initialPeersSnapshot"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::InitialPeersSnapshot)
+;
+                        }
+                        GeneratedField::InitialEntitiesSnapshot => {
+                            if payload__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("initialEntitiesSnapshot"));
+                            }
+                            payload__ = map_.next_value::<::std::option::Option<_>>()?.map(event_server_envelope::Payload::InitialEntitiesSnapshot)
+;
+                        }
+                    }
+                }
+                Ok(EventServerEnvelope {
+                    payload: payload__,
+                })
+            }
+        }
+        deserializer.deserialize_struct("sown.protocol.v1.EventServerEnvelope", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for EventServerPeerAdmitted {

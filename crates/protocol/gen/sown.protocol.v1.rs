@@ -105,22 +105,33 @@ pub struct ControlServerError {
     pub message: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ControlEnvelope {
-    #[prost(oneof = "control_envelope::Payload", tags = "1, 2, 3, 4, 5")]
-    pub payload: ::core::option::Option<control_envelope::Payload>,
+pub struct ControlClientEnvelope {
+    #[prost(oneof = "control_client_envelope::Payload", tags = "1, 4")]
+    pub payload: ::core::option::Option<control_client_envelope::Payload>,
 }
-/// Nested message and enum types in `ControlEnvelope`.
-pub mod control_envelope {
+/// Nested message and enum types in `ControlClientEnvelope`.
+pub mod control_client_envelope {
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
         ClientHello(super::ControlClientHello),
+        #[prost(message, tag = "4")]
+        ClientJoin(super::ControlClientJoin),
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ControlServerEnvelope {
+    #[prost(oneof = "control_server_envelope::Payload", tags = "2, 3, 5")]
+    pub payload: ::core::option::Option<control_server_envelope::Payload>,
+}
+/// Nested message and enum types in `ControlServerEnvelope`.
+pub mod control_server_envelope {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Payload {
         #[prost(message, tag = "2")]
         ServerWelcome(super::ControlServerWelcome),
         #[prost(message, tag = "3")]
         ServerError(super::ControlServerError),
-        #[prost(message, tag = "4")]
-        ClientJoin(super::ControlClientJoin),
         #[prost(message, tag = "5")]
         ServerJoined(super::ControlServerJoined),
     }
@@ -147,13 +158,15 @@ pub struct EventServerEntityRemoved {
     #[prost(uint64, tag = "1")]
     pub entity_id: u64,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EventClientEnvelope {}
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EventEnvelope {
-    #[prost(oneof = "event_envelope::Payload", tags = "1, 2, 3, 4, 5, 6")]
-    pub payload: ::core::option::Option<event_envelope::Payload>,
+pub struct EventServerEnvelope {
+    #[prost(oneof = "event_server_envelope::Payload", tags = "1, 2, 3, 4, 5, 6")]
+    pub payload: ::core::option::Option<event_server_envelope::Payload>,
 }
-/// Nested message and enum types in `EventEnvelope`.
-pub mod event_envelope {
+/// Nested message and enum types in `EventServerEnvelope`.
+pub mod event_server_envelope {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
@@ -177,17 +190,28 @@ pub struct DatagramClientLocalPlayerMove {
     #[prost(message, optional, tag = "1")]
     pub transform: ::core::option::Option<Transform>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DatagramEnvelope {
-    #[prost(oneof = "datagram_envelope::Payload", tags = "1, 2, 3")]
-    pub payload: ::core::option::Option<datagram_envelope::Payload>,
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DatagramClientEnvelope {
+    #[prost(oneof = "datagram_client_envelope::Payload", tags = "1")]
+    pub payload: ::core::option::Option<datagram_client_envelope::Payload>,
 }
-/// Nested message and enum types in `DatagramEnvelope`.
-pub mod datagram_envelope {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+/// Nested message and enum types in `DatagramClientEnvelope`.
+pub mod datagram_client_envelope {
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
     pub enum Payload {
         #[prost(message, tag = "1")]
         LocalPlayerMove(super::DatagramClientLocalPlayerMove),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DatagramServerEnvelope {
+    #[prost(oneof = "datagram_server_envelope::Payload", tags = "2, 3")]
+    pub payload: ::core::option::Option<datagram_server_envelope::Payload>,
+}
+/// Nested message and enum types in `DatagramServerEnvelope`.
+pub mod datagram_server_envelope {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Payload {
         #[prost(message, tag = "2")]
         PeersSnapshot(super::ServerPeersSnapshot),
         #[prost(message, tag = "3")]

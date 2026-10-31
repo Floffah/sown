@@ -1,10 +1,11 @@
 use anyhow::{Result, bail, ensure};
 use protocol::v1::{
-    ClientStreamHeader, ControlClientHello, ControlEnvelope, StreamId, control_envelope,
+    ClientStreamHeader, ControlClientEnvelope, ControlClientHello, ControlServerEnvelope, StreamId,
+    control_client_envelope, control_server_envelope,
 };
 use quinn::{Connection, RecvStream, SendStream};
 
-use super::{ClientStreams, read_message, write_control, write_message};
+use super::{ClientStreams, read_message, write_message};
 use crate::{
     PROTOCOL_VERSION,
     inspection::{Capture, CaptureContext, Channel},
@@ -25,13 +26,16 @@ pub async fn handshake(
     let events_capture = capture.map(|capture| capture.context(connection_id, Channel::Events));
     let (mut control_send, mut control_recv) =
         open_stream(connection, StreamId::Control, control_capture.as_ref()).await?;
-    let hello = ControlClientHello {
-        protocol_version: PROTOCOL_VERSION,
-        username: None,
-    };
-    write_control(
+    write_message(
         &mut control_send,
-        control_envelope::Payload::ClientHello(hello),
+        &ControlClientEnvelope {
+            payload: Some(control_client_envelope::Payload::ClientHello(
+                ControlClientHello {
+                    protocol_version: PROTOCOL_VERSION,
+                    username: None,
+                },
+            )),
+        },
         control_capture.as_ref(),
     )
     .await?;
@@ -58,16 +62,20 @@ async fn open_stream(
     capture: Option<&CaptureContext>,
 ) -> Result<(SendStream, RecvStream)> {
     let (mut send, recv) = connection.open_bi().await?;
-    let header = ClientStreamHeader {
-        stream_id: stream as i32,
-    };
-    write_message(&mut send, &header, capture).await?;
+    write_message(
+        &mut send,
+        &ClientStreamHeader {
+            stream_id: stream as i32,
+        },
+        capture,
+    )
+    .await?;
     Ok((send, recv))
 }
 
-fn validate_welcome(response: ControlEnvelope) -> Result<u32> {
+fn validate_welcome(response: ControlServerEnvelope) -> Result<u32> {
     match response.payload {
-        Some(control_envelope::Payload::ServerWelcome(welcome)) => {
+        Some(control_server_envelope::Payload::ServerWelcome(welcome)) => {
             ensure!(
                 welcome.protocol_version == PROTOCOL_VERSION,
                 "Unsupported server protocol version: {}",
@@ -76,7 +84,7 @@ fn validate_welcome(response: ControlEnvelope) -> Result<u32> {
             ensure!(welcome.peer_id != 0, "Invalid peer ID in Welcome");
             Ok(welcome.peer_id)
         }
-        Some(control_envelope::Payload::ServerError(error)) => {
+        Some(control_server_envelope::Payload::ServerError(error)) => {
             bail!("Server rejected join: {}", error.message)
         }
         _ => bail!("Expected ServerWelcome on Control"),
@@ -86,12 +94,12 @@ fn validate_welcome(response: ControlEnvelope) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use protocol::v1::{ControlServerError, ControlServerWelcome};
+    use protocol::v1::{ControlServerError, ControlServerJoined, ControlServerWelcome};
 
     #[test]
     fn accepts_matching_welcome_and_rejects_other_responses() -> Result<()> {
-        validate_welcome(ControlEnvelope {
-            payload: Some(control_envelope::Payload::ServerWelcome(
+        validate_welcome(ControlServerEnvelope {
+            payload: Some(control_server_envelope::Payload::ServerWelcome(
                 ControlServerWelcome {
                     protocol_version: PROTOCOL_VERSION,
                     peer_id: 1,
@@ -100,23 +108,26 @@ mod tests {
         })?;
         for payload in [
             None,
-            Some(control_envelope::Payload::ClientHello(ControlClientHello {
-                protocol_version: PROTOCOL_VERSION,
-                username: None,
-            })),
-            Some(control_envelope::Payload::ServerWelcome(
+            Some(control_server_envelope::Payload::ServerJoined(
+                ControlServerJoined {
+                    player_entity_id: 1,
+                },
+            )),
+            Some(control_server_envelope::Payload::ServerWelcome(
                 ControlServerWelcome {
                     protocol_version: PROTOCOL_VERSION + 1,
                     peer_id: 1,
                 },
             )),
         ] {
-            assert!(validate_welcome(ControlEnvelope { payload }).is_err());
+            assert!(validate_welcome(ControlServerEnvelope { payload }).is_err());
         }
-        let error = validate_welcome(ControlEnvelope {
-            payload: Some(control_envelope::Payload::ServerError(ControlServerError {
-                message: "Server is full".into(),
-            })),
+        let error = validate_welcome(ControlServerEnvelope {
+            payload: Some(control_server_envelope::Payload::ServerError(
+                ControlServerError {
+                    message: "Server is full".into(),
+                },
+            )),
         })
         .unwrap_err();
         assert!(error.to_string().contains("Server is full"));

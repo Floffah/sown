@@ -10,7 +10,7 @@ use networking::{
     inspection::{Capture, CaptureContext},
     quic::{handshake, join, read_message},
 };
-use protocol::v1::ControlEnvelope;
+use protocol::v1::ControlServerEnvelope;
 use quinn::{Connection, Endpoint, crypto::rustls::QuicClientConfig, rustls};
 use rustls::pki_types::CertificateDer;
 
@@ -63,7 +63,7 @@ async fn run_session(
 
     tokio::select! {
         reason = connection.closed() => println!("QUIC disconnected: {reason}"),
-        response = read_message::<ControlEnvelope>(&mut streams.control_recv, streams.control_capture.as_ref()) => {
+        response = read_message::<ControlServerEnvelope>(&mut streams.control_recv, streams.control_capture.as_ref()) => {
             let _ = response?;
             anyhow::bail!("Unexpected Control message during Play");
         }

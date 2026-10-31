@@ -2,8 +2,9 @@ use super::*;
 use protocol::{
     Message,
     v1::{
-        ClientStreamHeader, ControlClientHello, ControlClientJoin, ControlEnvelope, EventEnvelope,
-        StreamId, control_envelope, event_envelope,
+        ClientStreamHeader, ControlClientEnvelope, ControlClientHello, ControlClientJoin,
+        ControlServerEnvelope, EventServerEnvelope, StreamId, control_client_envelope,
+        control_server_envelope, event_server_envelope,
     },
 };
 use quinn::{Connection, crypto::rustls::QuicClientConfig};
@@ -62,12 +63,14 @@ impl TestServer {
     }
 }
 
-fn hello(version: u32) -> ControlEnvelope {
-    ControlEnvelope {
-        payload: Some(control_envelope::Payload::ClientHello(ControlClientHello {
-            protocol_version: version,
-            username: None,
-        })),
+fn hello(version: u32) -> ControlClientEnvelope {
+    ControlClientEnvelope {
+        payload: Some(control_client_envelope::Payload::ClientHello(
+            ControlClientHello {
+                protocol_version: version,
+                username: None,
+            },
+        )),
     }
 }
 
@@ -104,6 +107,10 @@ async fn joins_two_players_and_broadcasts_creation_and_removal() -> Result<()> {
         assert_eq!(initial_a.entities.len(), 1);
         let packets: Vec<_> = std::iter::from_fn(|| captured.try_recv()).collect();
         assert_eq!(packets.len(), 8);
+        assert_eq!(packets[1].message_type, "ControlClientEnvelope");
+        assert_eq!(packets[2].message_type, "ControlServerEnvelope");
+        assert_eq!(packets[5].message_type, "ControlServerEnvelope");
+        assert_eq!(packets[6].message_type, "EventServerEnvelope");
         assert_eq!(captured.dropped(), 0);
         assert_eq!(
             packets[1].direction,
@@ -127,36 +134,38 @@ async fn joins_two_players_and_broadcasts_creation_and_removal() -> Result<()> {
         assert_eq!(initial_b.entities.len(), 2);
         assert_ne!(initial_a.player_entity_id, initial_b.player_entity_id);
         assert_eq!(player_count(&server), 2);
-        let admitted: EventEnvelope =
+        let admitted: EventServerEnvelope =
             networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
-            matches!(admitted.payload, Some(event_envelope::Payload::PeerAdmitted(peer))
+            matches!(admitted.payload, Some(event_server_envelope::Payload::PeerAdmitted(peer))
             if peer.snapshot.as_ref().unwrap().peer_id == b.peer_id)
         );
-        let created: EventEnvelope =
+        let created: EventServerEnvelope =
             networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
-            matches!(created.payload, Some(event_envelope::Payload::EntityCreated(entity))
+            matches!(created.payload, Some(event_server_envelope::Payload::EntityCreated(entity))
             if entity.snapshot.unwrap().entity_id == initial_b.player_entity_id)
         );
         second.close(0_u8.into(), b"Leaving");
-        let removed: EventEnvelope =
+        let removed: EventServerEnvelope =
             networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
-            matches!(removed.payload, Some(event_envelope::Payload::EntityRemoved(entity))
+            matches!(removed.payload, Some(event_server_envelope::Payload::EntityRemoved(entity))
             if entity.entity_id == initial_b.player_entity_id)
         );
-        let removed: EventEnvelope =
+        let removed: EventServerEnvelope =
             networking::quic::read_message(&mut a.events_recv, None).await?;
         assert!(
-            matches!(removed.payload, Some(event_envelope::Payload::PeerRemoved(peer))
+            matches!(removed.payload, Some(event_server_envelope::Payload::PeerRemoved(peer))
             if peer.peer_id == b.peer_id)
         );
         assert_eq!(player_count(&server), 1);
         networking::quic::write_message(
             &mut a.control_send,
-            &ControlEnvelope {
-                payload: Some(control_envelope::Payload::ClientJoin(ControlClientJoin {})),
+            &ControlClientEnvelope {
+                payload: Some(control_client_envelope::Payload::ClientJoin(
+                    ControlClientJoin {},
+                )),
             },
             None,
         )
@@ -177,7 +186,7 @@ async fn full_capture_queue_does_not_interrupt_join() -> Result<()> {
         let context = capture.context(1, networking::inspection::Channel::Control);
         let body = hello(1).encode_to_vec();
         for _ in 0..300 {
-            context.record::<ControlEnvelope>(
+            context.record::<ControlClientEnvelope>(
                 networking::inspection::Direction::Sent,
                 &body,
                 body.len() + 1,
@@ -210,16 +219,18 @@ async fn accepts_join_before_events_and_rejects_client_events() -> Result<()> {
         )
         .await?;
         networking::quic::write_message(&mut control_send, &hello(1), None).await?;
-        let welcome: ControlEnvelope =
+        let welcome: ControlServerEnvelope =
             networking::quic::read_message(&mut control_recv, None).await?;
         assert!(matches!(
             welcome.payload,
-            Some(control_envelope::Payload::ServerWelcome(_))
+            Some(control_server_envelope::Payload::ServerWelcome(_))
         ));
         networking::quic::write_message(
             &mut control_send,
-            &ControlEnvelope {
-                payload: Some(control_envelope::Payload::ClientJoin(ControlClientJoin {})),
+            &ControlClientEnvelope {
+                payload: Some(control_client_envelope::Payload::ClientJoin(
+                    ControlClientJoin {},
+                )),
             },
             None,
         )
@@ -234,16 +245,27 @@ async fn accepts_join_before_events_and_rejects_client_events() -> Result<()> {
             None,
         )
         .await?;
-        let joined: ControlEnvelope =
+        let joined: ControlServerEnvelope =
             networking::quic::read_message(&mut control_recv, None).await?;
         assert!(matches!(
             joined.payload,
-            Some(control_envelope::Payload::ServerJoined(_))
+            Some(control_server_envelope::Payload::ServerJoined(_))
         ));
-        let _: EventEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
-        let _: EventEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
+        let _: EventServerEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
+        let _: EventServerEnvelope = networking::quic::read_message(&mut events_recv, None).await?;
         events_send.write_all(&[1, 0xff]).await?;
         rejection(&connection, "Invalid protobuf message").await?;
+        assert_eq!(player_count(&server), 0);
+        let connection = server.connect().await?;
+        let mut streams = networking::quic::handshake(&connection, None).await?;
+        networking::quic::join(&mut streams).await?;
+        networking::quic::write_message(
+            &mut streams.events_send,
+            &protocol::v1::EventClientEnvelope {},
+            None,
+        )
+        .await?;
+        rejection(&connection, "Unexpected client Events message").await?;
         assert_eq!(player_count(&server), 0);
         server.shutdown().await
     })
@@ -261,7 +283,20 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         let mut wrong_version = control.clone();
         wrong_version.extend(hello(2).encode_length_delimited_to_vec());
         let mut wrong_payload = control.clone();
-        wrong_payload.extend(ControlEnvelope { payload: None }.encode_length_delimited_to_vec());
+        wrong_payload
+            .extend(ControlClientEnvelope { payload: None }.encode_length_delimited_to_vec());
+        let mut wrong_direction = control.clone();
+        wrong_direction.extend(
+            ControlServerEnvelope {
+                payload: Some(control_server_envelope::Payload::ServerWelcome(
+                    protocol::v1::ControlServerWelcome {
+                        protocol_version: 1,
+                        peer_id: 1,
+                    },
+                )),
+            }
+            .encode_length_delimited_to_vec(),
+        );
         let cases = [
             (
                 ClientStreamHeader { stream_id: 99 }.encode_length_delimited_to_vec(),
@@ -276,6 +311,7 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
             ),
             (wrong_version, "Unsupported protocol version"),
             (wrong_payload, "Expected ClientHello"),
+            (wrong_direction, "Expected ClientHello"),
             (vec![0x81, 0x80, 0x04], "Message exceeds 64 KiB limit"),
             (vec![0x80; 10], "Invalid message length varint"),
             (vec![0x80], "Failed to read message length"),
@@ -293,7 +329,7 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         let connection = server.connect().await?;
         let (mut send, mut recv) = connection.open_bi().await?;
         send.write_all(&second_control).await?;
-        let _: ControlEnvelope = networking::quic::read_message(&mut recv, None).await?;
+        let _: ControlServerEnvelope = networking::quic::read_message(&mut recv, None).await?;
         let (mut duplicate, _recv) = connection.open_bi().await?;
         networking::quic::write_message(
             &mut duplicate,

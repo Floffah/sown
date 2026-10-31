@@ -16,10 +16,10 @@ The length describes only the body, excluding the prefix. Each header and each e
 
 The maximum body length is **65,536 bytes (64 KiB)**. Validate the prefix before allocating storage for the body. Reject invalid or overflowing varints, oversized lengths, truncated bodies, and malformed Protocol Buffers messages.
 
-The body type depends on where you are in the stream: `ClientStreamHeader` identifies the channel, then `ControlEnvelope` or `EventEnvelope` supplies messages. A stream read can contain part of a frame or several frames, so read boundaries do not identify message boundaries.
+The body type depends on where you are in the stream: `ClientStreamHeader` identifies the channel, then the [directional envelope](../messages/) for that channel supplies messages: `ControlClientEnvelope` and `ControlServerEnvelope` on Control, or `EventClientEnvelope` and `EventServerEnvelope` on Events. A stream read can contain part of a frame or several frames, so read boundaries do not identify message boundaries.
 
 ## Compatibility
 
-Preserve Protocol Buffers field numbers and reserved fields when implementing the schema. An envelope uses a `oneof` payload to identify its message. An empty Events envelope is rejected by the reference session receiver.
+Preserve Protocol Buffers field numbers and reserved fields when implementing the schema. Envelopes with defined messages use a `oneof` payload to identify their message. The client rejects an empty `EventServerEnvelope`. `EventClientEnvelope` has no fields, and the server rejects all client Events messages.
 
 Datagrams have transport-provided boundaries. The reliable stream prefix is not an extra requirement on the datagram schema.

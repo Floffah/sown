@@ -9,9 +9,9 @@ use engine::ecs::{
     scene::Transform,
 };
 use protocol::v1::{
-    EntitySnapshot, EventEnvelope, EventServerEntityCreated, EventServerEntityRemoved,
+    EntitySnapshot, EventServerEntityCreated, EventServerEntityRemoved, EventServerEnvelope,
     EventServerPeerAdmitted, EventServerPeerRemoved, PeerSnapshot, Quaternion,
-    ServerEntitiesSnapshot, ServerPeersSnapshot, Vector3, event_envelope::Payload,
+    ServerEntitiesSnapshot, ServerPeersSnapshot, Vector3, event_server_envelope::Payload,
 };
 use quinn::Connection;
 use tokio::sync::mpsc;
@@ -30,7 +30,7 @@ struct Peer {
     snapshot: PeerSnapshot,
     entity: Entity,
     connection: Connection,
-    events: mpsc::Sender<EventEnvelope>,
+    events: mpsc::Sender<EventServerEnvelope>,
 }
 
 impl World {
@@ -55,7 +55,7 @@ impl World {
         peer_id: u32,
         username: Option<String>,
         connection: Connection,
-    ) -> Result<(u64, mpsc::Receiver<EventEnvelope>)> {
+    ) -> Result<(u64, mpsc::Receiver<EventServerEnvelope>)> {
         anyhow::ensure!(!self.peers.contains_key(&peer_id), "Peer already admitted");
         let entity_id = self.next_entity_id;
         self.next_entity_id = entity_id.checked_add(1).context("Entity IDs exhausted")?;
@@ -83,7 +83,7 @@ impl World {
             },
         );
         // Queue the baseline before exposing this peer to subsequent lifecycle events.
-        events.try_send(EventEnvelope {
+        events.try_send(EventServerEnvelope {
             payload: Some(Payload::InitialPeersSnapshot(ServerPeersSnapshot {
                 server_tick: self.tick,
                 snapshot: self
@@ -93,7 +93,7 @@ impl World {
                     .collect(),
             })),
         })?;
-        events.try_send(EventEnvelope {
+        events.try_send(EventServerEnvelope {
             payload: Some(Payload::InitialEntitiesSnapshot(ServerEntitiesSnapshot {
                 server_tick: self.tick,
                 snapshot: self
@@ -152,7 +152,7 @@ impl World {
         for peer in self.peers.values() {
             if peer
                 .events
-                .try_send(EventEnvelope {
+                .try_send(EventServerEnvelope {
                     payload: Some(payload.clone()),
                 })
                 .is_err()

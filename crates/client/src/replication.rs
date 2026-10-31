@@ -7,7 +7,9 @@ use engine::ecs::{
     scene::Transform,
 };
 use networking::session::{JoinedWorld, validate_entity};
-use protocol::v1::{EntitySnapshot, EventEnvelope, PeerSnapshot, event_envelope::Payload};
+use protocol::v1::{
+    EntitySnapshot, EventServerEnvelope, PeerSnapshot, event_server_envelope::Payload,
+};
 use quinn::Connection;
 
 pub(super) enum Update {
@@ -15,7 +17,7 @@ pub(super) enum Update {
         world: JoinedWorld,
         connection: Connection,
     },
-    Event(EventEnvelope),
+    Event(EventServerEnvelope),
 }
 
 pub(super) struct Replication {
@@ -220,7 +222,7 @@ mod tests {
         );
         replication.apply(
             &mut world,
-            Update::Event(EventEnvelope {
+            Update::Event(EventServerEnvelope {
                 payload: Some(Payload::EntityCreated(EventServerEntityCreated {
                     snapshot: Some(entity(73)),
                 })),
@@ -229,7 +231,7 @@ mod tests {
         let created = replication.entities[&73];
         replication.apply(
             &mut world,
-            Update::Event(EventEnvelope {
+            Update::Event(EventServerEnvelope {
                 payload: Some(Payload::EntityRemoved(EventServerEntityRemoved {
                     entity_id: 73,
                 })),

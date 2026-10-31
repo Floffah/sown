@@ -93,13 +93,18 @@ message ControlServerError {
   string message = 2;
 }
 
-message ControlEnvelope {
+message ControlClientEnvelope {
   oneof payload {
     ControlClientHello client_hello = 1;
-    ControlServerWelcome server_welcome = 2;
-    ControlServerError server_error = 3;
-    ControlClientJoin client_join = 4;
-    ControlServerJoined server_joined = 5;
+    ControlClientJoin client_join = 2;
+  }
+}
+
+message ControlServerEnvelope {
+  oneof payload {
+    ControlServerWelcome server_welcome = 1;
+    ControlServerError server_error = 2;
+    ControlServerJoined server_joined = 3;
   }
 }
 
@@ -121,7 +126,9 @@ message EventServerEntityRemoved {
   uint64 entity_id = 1;
 }
 
-message EventEnvelope {
+message EventClientEnvelope {}
+
+message EventServerEnvelope {
   oneof payload {
     EventServerPeerAdmitted peer_admitted = 1;
     EventServerPeerRemoved peer_removed = 2;
@@ -138,10 +145,15 @@ message DatagramClientLocalPlayerMove {
   Transform transform = 1;
 }
 
-message DatagramEnvelope {
+message DatagramClientEnvelope {
   oneof payload {
     DatagramClientLocalPlayerMove local_player_move = 1;
-    ServerPeersSnapshot peers_snapshot = 2;
-    ServerEntitiesSnapshot entities_snapshot = 3;
+  }
+}
+
+message DatagramServerEnvelope {
+  oneof payload {
+    ServerPeersSnapshot peers_snapshot = 1;
+    ServerEntitiesSnapshot entities_snapshot = 2;
   }
 }

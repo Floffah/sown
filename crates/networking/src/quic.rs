@@ -2,7 +2,6 @@
 
 use anyhow::{Context, Result, bail};
 use prost::Message;
-use protocol::v1::{ControlEnvelope, control_envelope};
 use quinn::{RecvStream, SendStream};
 use serde::Serialize;
 
@@ -56,21 +55,6 @@ pub async fn read_message<M: Message + Default + Serialize>(
         }
     }
     bail!("Invalid message length varint")
-}
-
-/// Wraps a Control payload in its envelope and writes the framed message.
-///
-/// # Errors
-/// Returns an error if the message is oversized or the stream write fails.
-pub async fn write_control(
-    send: &mut SendStream,
-    payload: control_envelope::Payload,
-    capture: Option<&CaptureContext>,
-) -> Result<()> {
-    let envelope = ControlEnvelope {
-        payload: Some(payload),
-    };
-    write_message(send, &envelope, capture).await
 }
 
 /// Writes one protobuf message with its length prefix to a QUIC stream.

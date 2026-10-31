@@ -1,10 +1,11 @@
 use anyhow::{Context, Result, bail, ensure};
 use protocol::v1::{
-    ControlClientJoin, ControlEnvelope, EventEnvelope, ServerEntitiesSnapshot, ServerPeersSnapshot,
-    control_envelope, event_envelope,
+    ControlClientEnvelope, ControlClientJoin, ControlServerEnvelope, EventServerEnvelope,
+    ServerEntitiesSnapshot, ServerPeersSnapshot, control_client_envelope, control_server_envelope,
+    event_server_envelope,
 };
 
-use super::{ClientStreams, read_message, write_control};
+use super::{ClientStreams, read_message, write_message};
 use crate::session::JoinedWorld;
 
 /// Requests admission, reads Joined, and validates both reliable baseline snapshots.
@@ -14,19 +15,22 @@ use crate::session::JoinedWorld;
 /// Returns an error for rejected admission, invalid baselines, or stream failures.
 /// The caller supplies a deadline and closes the connection on failure.
 pub async fn join(streams: &mut ClientStreams) -> Result<JoinedWorld> {
-    let request = control_envelope::Payload::ClientJoin(ControlClientJoin {});
-    write_control(
+    write_message(
         &mut streams.control_send,
-        request,
+        &ControlClientEnvelope {
+            payload: Some(control_client_envelope::Payload::ClientJoin(
+                ControlClientJoin {},
+            )),
+        },
         streams.control_capture.as_ref(),
     )
     .await?;
 
-    let response: ControlEnvelope =
+    let response: ControlServerEnvelope =
         read_message(&mut streams.control_recv, streams.control_capture.as_ref()).await?;
     let player_entity_id = match response.payload {
-        Some(control_envelope::Payload::ServerJoined(joined)) => joined.player_entity_id,
-        Some(control_envelope::Payload::ServerError(error)) => {
+        Some(control_server_envelope::Payload::ServerJoined(joined)) => joined.player_entity_id,
+        Some(control_server_envelope::Payload::ServerError(error)) => {
             bail!("Server rejected join: {}", error.message)
         }
         _ => bail!("Expected ServerJoined on Control"),
@@ -49,15 +53,17 @@ pub async fn join(streams: &mut ClientStreams) -> Result<JoinedWorld> {
 }
 
 fn parse_initial_snapshots(
-    messages: [EventEnvelope; 2],
+    messages: [EventServerEnvelope; 2],
 ) -> Result<(ServerPeersSnapshot, ServerEntitiesSnapshot)> {
     let mut peers = None;
     let mut entities = None;
 
     for message in messages {
         match message.payload {
-            Some(event_envelope::Payload::InitialPeersSnapshot(snapshot)) => peers = Some(snapshot),
-            Some(event_envelope::Payload::InitialEntitiesSnapshot(snapshot)) => {
+            Some(event_server_envelope::Payload::InitialPeersSnapshot(snapshot)) => {
+                peers = Some(snapshot);
+            }
+            Some(event_server_envelope::Payload::InitialEntitiesSnapshot(snapshot)) => {
                 entities = Some(snapshot);
             }
             _ => bail!("Expected both initial snapshots on Events"),
@@ -79,16 +85,16 @@ mod tests {
 
     #[test]
     fn initial_snapshots_accept_either_order_and_require_a_matching_pair() -> Result<()> {
-        let peers = EventEnvelope {
-            payload: Some(event_envelope::Payload::InitialPeersSnapshot(
+        let peers = EventServerEnvelope {
+            payload: Some(event_server_envelope::Payload::InitialPeersSnapshot(
                 ServerPeersSnapshot {
                     server_tick: 7,
                     snapshot: vec![],
                 },
             )),
         };
-        let entities = EventEnvelope {
-            payload: Some(event_envelope::Payload::InitialEntitiesSnapshot(
+        let entities = EventServerEnvelope {
+            payload: Some(event_server_envelope::Payload::InitialEntitiesSnapshot(
                 ServerEntitiesSnapshot {
                     server_tick: 7,
                     snapshot: vec![],
@@ -102,11 +108,11 @@ mod tests {
         for messages in [
             [peers.clone(), peers.clone()],
             [entities.clone(), entities],
-            [peers.clone(), EventEnvelope { payload: None }],
+            [peers.clone(), EventServerEnvelope { payload: None }],
             [
                 peers,
-                EventEnvelope {
-                    payload: Some(event_envelope::Payload::InitialEntitiesSnapshot(
+                EventServerEnvelope {
+                    payload: Some(event_server_envelope::Payload::InitialEntitiesSnapshot(
                         ServerEntitiesSnapshot {
                             server_tick: 8,
                             snapshot: vec![],

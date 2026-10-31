@@ -3,11 +3,12 @@ use std::{sync::Mutex, time::Duration};
 use anyhow::{Context, Result, bail, ensure};
 use networking::{
     PROTOCOL_VERSION,
-    quic::{read_message, write_control, write_message},
+    quic::{read_message, write_message},
 };
 use protocol::v1::{
-    ClientStreamHeader, ControlEnvelope, ControlServerJoined, ControlServerWelcome, EventEnvelope,
-    StreamId, control_envelope,
+    ClientStreamHeader, ControlClientEnvelope, ControlServerEnvelope, ControlServerJoined,
+    ControlServerWelcome, EventClientEnvelope, EventServerEnvelope, StreamId,
+    control_client_envelope, control_server_envelope,
 };
 use quinn::{Connection, RecvStream, SendStream};
 use tokio::sync::mpsc;
@@ -44,9 +45,11 @@ pub(super) async fn run(connection: &Connection, world: &Mutex<World>) -> Result
             .unwrap()
             .admit(peer_id, username, connection.clone())?;
     let joined = ControlServerJoined { player_entity_id };
-    write_control(
+    write_message(
         &mut control_send,
-        control_envelope::Payload::ServerJoined(joined),
+        &ControlServerEnvelope {
+            payload: Some(control_server_envelope::Payload::ServerJoined(joined)),
+        },
         None,
     )
     .await?;
@@ -68,8 +71,8 @@ async fn handshake(
     let (mut send, mut recv) = connection.accept_bi().await?;
     read_header(&mut recv, StreamId::Control).await?;
 
-    let message: ControlEnvelope = read_message(&mut recv, None).await?;
-    let Some(control_envelope::Payload::ClientHello(hello)) = message.payload else {
+    let message: ControlClientEnvelope = read_message(&mut recv, None).await?;
+    let Some(control_client_envelope::Payload::ClientHello(hello)) = message.payload else {
         bail!("Expected ClientHello on Control");
     };
     ensure!(
@@ -82,9 +85,11 @@ async fn handshake(
         protocol_version: PROTOCOL_VERSION,
         peer_id,
     };
-    write_control(
+    write_message(
         &mut send,
-        control_envelope::Payload::ServerWelcome(welcome),
+        &ControlServerEnvelope {
+            payload: Some(control_server_envelope::Payload::ServerWelcome(welcome)),
+        },
         None,
     )
     .await?;
@@ -102,11 +107,11 @@ async fn read_header(recv: &mut RecvStream, expected: StreamId) -> Result<()> {
 }
 
 async fn read_join(recv: &mut RecvStream) -> Result<()> {
-    let message: ControlEnvelope = read_message(recv, None).await?;
+    let message: ControlClientEnvelope = read_message(recv, None).await?;
     ensure!(
         matches!(
             message.payload,
-            Some(control_envelope::Payload::ClientJoin(_))
+            Some(control_client_envelope::Payload::ClientJoin(_))
         ),
         "Expected ClientJoin on Control"
     );
@@ -122,18 +127,18 @@ async fn accept_events(connection: &Connection) -> Result<(SendStream, RecvStrea
 }
 
 async fn consume_control(_send: SendStream, mut recv: RecvStream) -> Result<()> {
-    let _: ControlEnvelope = read_message(&mut recv, None).await?;
+    let _: ControlClientEnvelope = read_message(&mut recv, None).await?;
     bail!("Unexpected Control message after Joined")
 }
 
 async fn consume_events(mut recv: RecvStream) -> Result<()> {
-    let _: EventEnvelope = read_message(&mut recv, None).await?;
+    let _: EventClientEnvelope = read_message(&mut recv, None).await?;
     bail!("Unexpected client Events message")
 }
 
 async fn send_events(
     mut send: SendStream,
-    mut events: mpsc::Receiver<EventEnvelope>,
+    mut events: mpsc::Receiver<EventServerEnvelope>,
 ) -> Result<()> {
     while let Some(event) = events.recv().await {
         write_message(&mut send, &event, None).await?;

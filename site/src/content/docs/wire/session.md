@@ -23,8 +23,8 @@ means they do not necessarily change phase at the same instant.
 
 1. Open the first bidirectional stream.
 2. Send a framed `ClientStreamHeader` with `stream_id = 0` (Control).
-3. Send a framed `ControlEnvelope` containing `ControlClientHello` with `protocol_version = 1`.
-4. Read the server's `ControlEnvelope` containing `ControlServerWelcome` on the same stream.
+3. Send a framed `ControlClientEnvelope` containing `ControlClientHello` with `protocol_version = 1`.
+4. Read the server's `ControlServerEnvelope` containing `ControlServerWelcome` on the same stream.
 5. Check that Welcome reports protocol version `1` and retain its assigned `peer_id`.
 
 Welcome identifies the connection's peer. Player creation takes place during
@@ -46,7 +46,7 @@ Keep both stream pairs alive for the connection. The receiver handles Events ind
 ## Join
 
 After loading the world and sending the Events header, send an empty
-`ControlClientJoin` inside a `ControlEnvelope` on Control. This message starts
+`ControlClientJoin` inside a `ControlClientEnvelope` on Control. This message starts
 the Join phase.
 
 The server waits for both the Join request and a valid Events header before
@@ -55,7 +55,7 @@ streams. Once both are received, the server creates the peer's player entity
 and associates it with the peer ID assigned in Welcome. Other joined clients
 receive the peer admission and entity creation events on Events.
 
-The server sends `ControlServerJoined` on Control after spawning the player.
+The server sends `ControlServerJoined` in a `ControlServerEnvelope` on Control after spawning the player.
 Its `player_entity_id` identifies that player's replicated entity. The client
 retains this ID and matches it against `entity_id` in snapshots and subsequent
 entity events. A peer can own several entities, so ownership alone does not
@@ -90,7 +90,8 @@ authority over gameplay outcomes.
 ## Rejection and closure
 
 The receiver rejects unexpected headers, unsupported versions, duplicate Control
-channels, malformed frames, and empty Events envelopes. It also rejects Control
+channels and malformed frames. The client rejects empty server Events envelopes,
+and the server rejects every client Events application message. It also rejects Control
 messages that are invalid for the connection's phase, including another Hello
 after Welcome and repeated Join requests. Rejected connections close with
 application error code `1` and a textual reason.

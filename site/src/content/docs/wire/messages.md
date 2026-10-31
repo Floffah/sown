@@ -17,6 +17,11 @@ envelope. Receivers select the decoding type from the channel and the sender's
 role, then validate the payload against the session phase. The initial
 `ClientStreamHeader` remains a separate framed message.
 
+Field numbers are scoped to each envelope and can overlap across directions.
+Protobuf bodies do not include message type names. Decoding bytes as another
+message type can succeed when their fields have compatible encodings; direction
+comes from the connection role, not from the field numbers.
+
 ## Common values
 
 | Type | Fields |
@@ -31,7 +36,7 @@ Peers are network participants; entities are world objects. Peer snapshots descr
 
 ## Control schema
 
-`ControlClientEnvelope` defines `client_hello` (field `1`) and `client_join` (field `4`). `ControlServerEnvelope` defines `server_welcome` (field `2`), `server_error` (field `3`), and `server_joined` (field `5`). Hello carries the protocol version and optional username; Welcome carries protocol version and peer ID. `ControlClientJoin` has an empty body. `ControlServerJoined` carries the spawned player's `uint64 player_entity_id` in field `1`; its envelope payload uses field `5`. `ControlServerError` carries a message string in field `2`; field `1` and the name `error_id` are reserved.
+`ControlClientEnvelope` defines `client_hello` (field `1`) and `client_join` (field `2`). `ControlServerEnvelope` defines `server_welcome` (field `1`), `server_error` (field `2`), and `server_joined` (field `3`). Hello carries the protocol version and optional username; Welcome carries protocol version and peer ID. `ControlClientJoin` has an empty body. `ControlServerJoined` carries the spawned player's `uint64 player_entity_id` in field `1`; its envelope payload uses field `3`. `ControlServerError` carries a message string in field `2`; field `1` and the name `error_id` are reserved.
 
 Hello and Welcome belong to Handshake. After receiving Welcome and preparing
 the local world, the client sends `ControlClientJoin` to start Join. The server
@@ -58,6 +63,6 @@ messages; sending one causes the server to reject the session.
 
 ## Datagram schema
 
-`DatagramClientEnvelope` defines `local_player_move` (field `1`). `DatagramServerEnvelope` defines `peers_snapshot` (field `2`) and `entities_snapshot` (field `3`). Local player movement contains a transform. Snapshot collections contain a `uint64 server_tick` and repeated snapshot entries.
+`DatagramClientEnvelope` defines `local_player_move` (field `1`). `DatagramServerEnvelope` defines `peers_snapshot` (field `1`) and `entities_snapshot` (field `2`). Local player movement contains a transform. Snapshot collections contain a `uint64 server_tick` and repeated snapshot entries.
 
 The world server determines authoritative gameplay outcomes. Clients have no authority over a world's rules or stored progress through portable player data or reported transforms.

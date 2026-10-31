@@ -106,7 +106,7 @@ pub struct ControlServerError {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlClientEnvelope {
-    #[prost(oneof = "control_client_envelope::Payload", tags = "1, 4")]
+    #[prost(oneof = "control_client_envelope::Payload", tags = "1, 2")]
     pub payload: ::core::option::Option<control_client_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlClientEnvelope`.
@@ -115,24 +115,24 @@ pub mod control_client_envelope {
     pub enum Payload {
         #[prost(message, tag = "1")]
         ClientHello(super::ControlClientHello),
-        #[prost(message, tag = "4")]
+        #[prost(message, tag = "2")]
         ClientJoin(super::ControlClientJoin),
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ControlServerEnvelope {
-    #[prost(oneof = "control_server_envelope::Payload", tags = "2, 3, 5")]
+    #[prost(oneof = "control_server_envelope::Payload", tags = "1, 2, 3")]
     pub payload: ::core::option::Option<control_server_envelope::Payload>,
 }
 /// Nested message and enum types in `ControlServerEnvelope`.
 pub mod control_server_envelope {
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
     pub enum Payload {
-        #[prost(message, tag = "2")]
+        #[prost(message, tag = "1")]
         ServerWelcome(super::ControlServerWelcome),
-        #[prost(message, tag = "3")]
+        #[prost(message, tag = "2")]
         ServerError(super::ControlServerError),
-        #[prost(message, tag = "5")]
+        #[prost(message, tag = "3")]
         ServerJoined(super::ControlServerJoined),
     }
 }
@@ -205,16 +205,16 @@ pub mod datagram_client_envelope {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DatagramServerEnvelope {
-    #[prost(oneof = "datagram_server_envelope::Payload", tags = "2, 3")]
+    #[prost(oneof = "datagram_server_envelope::Payload", tags = "1, 2")]
     pub payload: ::core::option::Option<datagram_server_envelope::Payload>,
 }
 /// Nested message and enum types in `DatagramServerEnvelope`.
 pub mod datagram_server_envelope {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Payload {
-        #[prost(message, tag = "2")]
+        #[prost(message, tag = "1")]
         PeersSnapshot(super::ServerPeersSnapshot),
-        #[prost(message, tag = "3")]
+        #[prost(message, tag = "2")]
         EntitiesSnapshot(super::ServerEntitiesSnapshot),
     }
 }

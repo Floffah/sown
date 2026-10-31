@@ -80,7 +80,11 @@ async fn rejection(connection: &Connection, expected_reason: &str) -> Result<()>
         anyhow::bail!("Expected an application rejection, got {error}");
     };
     assert_eq!(close.error_code, 1_u8.into());
-    assert!(String::from_utf8_lossy(&close.reason).contains(expected_reason));
+    let reason = String::from_utf8_lossy(&close.reason);
+    assert!(
+        reason.contains(expected_reason),
+        "Expected {expected_reason:?}, got {reason:?}"
+    );
     Ok(())
 }
 
@@ -285,14 +289,11 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
         let mut wrong_payload = control.clone();
         wrong_payload
             .extend(ControlClientEnvelope { payload: None }.encode_length_delimited_to_vec());
-        let mut wrong_direction = control.clone();
-        wrong_direction.extend(
-            ControlServerEnvelope {
-                payload: Some(control_server_envelope::Payload::ServerWelcome(
-                    protocol::v1::ControlServerWelcome {
-                        protocol_version: 1,
-                        peer_id: 1,
-                    },
+        let mut early_join = control.clone();
+        early_join.extend(
+            ControlClientEnvelope {
+                payload: Some(control_client_envelope::Payload::ClientJoin(
+                    ControlClientJoin {},
                 )),
             }
             .encode_length_delimited_to_vec(),
@@ -311,7 +312,7 @@ async fn rejects_invalid_headers_handshakes_and_frames() -> Result<()> {
             ),
             (wrong_version, "Unsupported protocol version"),
             (wrong_payload, "Expected ClientHello"),
-            (wrong_direction, "Expected ClientHello"),
+            (early_join, "Expected ClientHello"),
             (vec![0x81, 0x80, 0x04], "Message exceeds 64 KiB limit"),
             (vec![0x80; 10], "Invalid message length varint"),
             (vec![0x80], "Failed to read message length"),

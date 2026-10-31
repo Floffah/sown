@@ -3,11 +3,7 @@ name = "client"
 edition.workspace = true
 version.workspace = true
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
-networking = { path = "../networking" }
 project = { path = "../project" }
 engine = { path = "../engine" }
 renderer = { path = "../renderer" }
@@ -19,28 +15,13 @@ anyhow = "1.0"
 winit = { version = "0.30", features = ["android-native-activity"] }
 env_logger = "0.11"
 log = "0.4"
-web-time = "1.1"
 pollster = "1.0"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 server = { path = "../server" }
 networking = { path = "../networking", features = ["quic"] }
 protocol = { path = "../protocol" }
 quinn = { version = "0.11", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+[dev-dependencies]
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring"] }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1"
-console_log = "1.1"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = [
-    "Document",
-    "Window",
-    "Element",
-]}

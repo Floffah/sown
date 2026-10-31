@@ -1,17 +1,9 @@
 use client::application::run;
 
 fn main() -> anyhow::Result<()> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        run(server_address(std::env::args().skip(1))?)
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        run()
-    }
+    run(server_address(std::env::args().skip(1))?)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn server_address(
     mut args: impl Iterator<Item = String>,
 ) -> anyhow::Result<Option<std::net::SocketAddr>> {
@@ -25,7 +17,7 @@ fn server_address(
     }
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
     use super::server_address;
 

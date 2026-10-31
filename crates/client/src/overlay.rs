@@ -52,7 +52,6 @@ impl Overlay {
         self.context.egui_wants_keyboard_input()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn set_capture(&mut self, capture: networking::inspection::CaptureReceiver) {
         self.devtools.set_capture(capture);
     }

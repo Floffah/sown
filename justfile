@@ -11,7 +11,7 @@ generate-protocol:
     cargo fmt -p protocol
 
 [arg("profile", long)]
-check profile="test": clippy test (fixtures profile)
+check profile="test": clippy test (fixtures profile) check-wasm
     cargo fmt --all --check
 
 fixtures profile="dev":
@@ -27,6 +27,9 @@ run-server:
 
 clippy:
     cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic
+
+check-wasm:
+    cargo check --locked --target wasm32-unknown-unknown -p project -p protocol -p runtime -p engine -p renderer -p networking -p devtools -p web-client
 
 format:
     cargo fmt --all

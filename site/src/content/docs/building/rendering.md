@@ -18,7 +18,7 @@ The camera looks along local negative Z with positive Y as up. Its transform sup
 
 ## Application integration
 
-The application owns the window or canvas, event loop, input, and redraw scheduling. Pass an owned render target and dimensions to `renderer::Renderer::new`, then call `resize` to configure the surface.
+Native and browser clients use separate application shells and share the renderer. Each application owns its window or canvas, event loop, input, and redraw scheduling. Pass an owned render target and dimensions to `renderer::Renderer::new`, then call `resize` to configure the surface.
 
 Pass the ECS world and an overlay callback to `render`. The renderer draws the
 scene, then invokes the callback with the current `RenderFrame` before presenting
